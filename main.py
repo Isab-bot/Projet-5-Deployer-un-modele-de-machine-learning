@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import TrainingData, Prediction
-from schemas import TrainingDataResponse, PredictionRequest, PredictionResponse
+from models import TrainingData, PredictionLog
+from schemas import EmployeeResponse, PredictionNewEmployeeRequest, PredictionLogResponse
 import json
 from typing import List
 
@@ -32,7 +32,7 @@ def health_check():
 
 # ========== ENDPOINTS TRAINING DATA ==========
 
-@app.get("/training-data", response_model=List[TrainingDataResponse])
+@app.get("/training-data", response_model=List[EmployeeResponse])
 def get_training_data(
     skip: int = 0, 
     limit: int = 10, 
@@ -48,7 +48,7 @@ def count_training_data(db: Session = Depends(get_db)):
     count = db.query(TrainingData).count()
     return {"total": count}
 
-@app.get("/training-data/{data_id}", response_model=TrainingDataResponse)
+@app.get("/training-data/{data_id}", response_model=EmployeeResponse)
 def get_training_data_by_id(data_id: int, db: Session = Depends(get_db)):
     """Récupérer une donnée d'entraînement spécifique"""
     data = db.query(TrainingData).filter(TrainingData.id == data_id).first()
@@ -58,9 +58,9 @@ def get_training_data_by_id(data_id: int, db: Session = Depends(get_db)):
 
 # ========== ENDPOINTS PREDICTIONS ==========
 
-@app.post("/predict", response_model=PredictionResponse)
+@app.post("/predict", response_model=PredictionLogResponse)
 def make_prediction(
-    request: PredictionRequest, 
+    request: PredictionNewEmployeeRequest, 
     db: Session = Depends(get_db)
 ):
     """
@@ -79,7 +79,7 @@ def make_prediction(
     # Sauvegarder la prédiction dans la DB
     features_json = json.dumps(request.features)
     
-    db_prediction = Prediction(
+    db_prediction = PredictionLog(
         input_features=features_json,
         prediction_result=prediction_result,
         model_version=request.model_version,
@@ -92,26 +92,26 @@ def make_prediction(
     
     return db_prediction
 
-@app.get("/predictions", response_model=List[PredictionResponse])
+@app.get("/predictions", response_model=List[PredictionLogResponse])
 def get_predictions(
     skip: int = 0, 
     limit: int = 10, 
     db: Session = Depends(get_db)
 ):
     """Récupérer l'historique des prédictions"""
-    predictions = db.query(Prediction).offset(skip).limit(limit).all()
+    predictions = db.query(PredictionLog).offset(skip).limit(limit).all()
     return predictions
 
 @app.get("/predictions/count")
 def count_predictions(db: Session = Depends(get_db)):
     """Compter le nombre total de prédictions"""
-    count = db.query(Prediction).count()
+    count = db.query(PredictionLog).count()
     return {"total": count}
 
-@app.get("/predictions/{prediction_id}", response_model=PredictionResponse)
+@app.get("/predictions/{prediction_id}", response_model=PredictionLogResponse)
 def get_prediction_by_id(prediction_id: int, db: Session = Depends(get_db)):
     """Récupérer une prédiction spécifique"""
-    prediction = db.query(Prediction).filter(Prediction.id == prediction_id).first()
+    prediction = db.query(PredictionLog).filter(PredictionLog.id == prediction_id).first()
     if not prediction:
         raise HTTPException(status_code=404, detail="Prédiction non trouvée")
     return prediction
@@ -122,7 +122,7 @@ def get_prediction_by_id(prediction_id: int, db: Session = Depends(get_db)):
 def get_statistics(db: Session = Depends(get_db)):
     """Statistiques générales"""
     total_training = db.query(TrainingData).count()
-    total_predictions = db.query(Prediction).count()
+    total_predictions = db.query(PredictionLog).count()
     
     # Compter les démissions dans les données d'entraînement
     oui_count = db.query(TrainingData).filter(TrainingData.target == "Oui").count()
