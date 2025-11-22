@@ -2,139 +2,277 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import TrainingData, PredictionLog
-from schemas import EmployeeResponse, PredictionNewEmployeeRequest, PredictionLogResponse
+from schemas import (
+    EmployeeResponse, 
+    PredictionFromIdRequest, 
+    PredictionNewEmployeeRequest,
+    PredictionLogResponse,
+    PredictionDetailedResponse
+)
 import json
 from typing import List
+from datetime import datetime
+from model_loader import model_loader
+
+# =============================================================================
+# INITIALISATION DE L'APPLICATION
+# =============================================================================
 
 app = FastAPI(
     title="API de Prédiction de Démission",
-    description="API pour prédire les démissions d'employés",
-    version="1.0.0"
+    description="API pour prédire les démissions d'employés avec XGBoost",
+    version="2.0.0"
 )
 
-# ========== ENDPOINTS DE TEST ==========
+@app.on_event("startup")
+def startup_event():
+    """Charger le modèle ML au démarrage de l'application"""
+    model_loader.load()
+
+# =============================================================================
+# ENDPOINTS DE BASE
+# =============================================================================
 
 @app.get("/")
 def root():
     return {
-        "message": "API de Prédiction de Démission",
+        "message": "API de Prédiction de Démission - XGBoost",
+        "version": "2.0.0",
+        "model": "XGBoost Light 100%",
         "endpoints": {
-            "docs": "/docs",
-            "training_data": "/training-data",
-            "predictions": "/predictions",
-            "predict": "/predict"
+            "documentation": "/docs",
+            "health": "/health",
+            "employees": "/employees",
+            "predict_from_id": "/predict/from_id/{employee_id}",
+            "predict_new_employee": "/predict/new_employee",
+            "get_prediction_log": "/predict/log/{log_id}",
+            "statistics": "/stats"
         }
     }
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "model_loaded": model_loader.model is not None,
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
-# ========== ENDPOINTS TRAINING DATA ==========
+# =============================================================================
+# ENDPOINTS EMPLOYEES (DONNÉES D'ENTRAÎNEMENT)
+# =============================================================================
 
-@app.get("/training-data", response_model=List[EmployeeResponse])
-def get_training_data(
+@app.get("/employees", response_model=List[EmployeeResponse])
+def get_employees(
     skip: int = 0, 
     limit: int = 10, 
     db: Session = Depends(get_db)
 ):
-    """Récupérer les données d'entraînement (pagination)"""
-    data = db.query(TrainingData).offset(skip).limit(limit).all()
-    return data
+    """Récupérer les employés (pagination)"""
+    employees = db.query(TrainingData).offset(skip).limit(limit).all()
+    return employees
 
-@app.get("/training-data/count")
-def count_training_data(db: Session = Depends(get_db)):
-    """Compter le nombre total de données d'entraînement"""
+@app.get("/employees/count")
+def count_employees(db: Session = Depends(get_db)):
+    """Compter le nombre total d'employés"""
     count = db.query(TrainingData).count()
     return {"total": count}
 
-@app.get("/training-data/{data_id}", response_model=EmployeeResponse)
-def get_training_data_by_id(data_id: int, db: Session = Depends(get_db)):
-    """Récupérer une donnée d'entraînement spécifique"""
-    data = db.query(TrainingData).filter(TrainingData.id == data_id).first()
-    if not data:
-        raise HTTPException(status_code=404, detail="Donnée non trouvée")
-    return data
+@app.get("/employees/{employee_id}", response_model=EmployeeResponse)
+def get_employee_by_id(employee_id: int, db: Session = Depends(get_db)):
+    """Récupérer un employé spécifique"""
+    employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employé non trouvé")
+    return employee
 
-# ========== ENDPOINTS PREDICTIONS ==========
+# =============================================================================
+# ENDPOINT 1 : PRÉDICTION À PARTIR D'UN ID EXISTANT
+# =============================================================================
 
-@app.post("/predict", response_model=PredictionLogResponse)
-def make_prediction(
-    request: PredictionNewEmployeeRequest, 
+@app.post("/predict/from_id/{employee_id}", response_model=PredictionDetailedResponse)
+def predict_from_employee_id(
+    employee_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    Faire une prédiction de démission
+    🎯 ENDPOINT 1 : Prédiction à partir d'un employé existant
     
-    Pour l'instant, c'est une prédiction factice.
-    Intégration du  vrai modèle ML plus tard.
+    - Récupère les features de l'employé depuis la DB
+    - Fait une prédiction avec le modèle
+    - Loggue la prédiction dans predictions_logs
     """
     
-    # TODO: Charger le modèle ML et faire la vraie prédiction
-    # Pour l'instant, prédiction aléatoire pour tester
-    import random
-    prediction_result = random.choice(["Oui", "Non"])
-    confidence = round(random.uniform(0.6, 0.99), 2)
+    # 1. Récupérer l'employé
+    employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail=f"Employé {employee_id} non trouvé")
     
-    # Sauvegarder la prédiction dans la DB
-    features_json = json.dumps(request.features)
+    # 2. Décoder les features (JSON → dict)
+    features = json.loads(employee.features)
     
-    db_prediction = PredictionLog(
+    # 3. Faire la prédiction
+    prediction_result = model_loader.predict(features)
+    
+    # 4. Logger dans predictions_logs
+    features_json = json.dumps(features)
+    
+    log_entry = PredictionLog(
+        employee_id=employee_id,
         input_features=features_json,
-        prediction_result=prediction_result,
-        model_version=request.model_version,
-        confidence_score=confidence
+        prediction_result=prediction_result['prediction'],
+        confidence_score=prediction_result['confidence_score'],
+        model_version="XGBoost_Light_100%"
     )
     
-    db.add(db_prediction)
+    db.add(log_entry)
     db.commit()
-    db.refresh(db_prediction)
+    db.refresh(log_entry)
     
-    return db_prediction
+    # 5. Retourner la réponse détaillée
+    return PredictionDetailedResponse(
+        log_id=log_entry.id,
+        employee_id=employee_id,
+        features=features,
+        prediction=prediction_result['prediction'],
+        confidence_score=prediction_result['confidence_score'],
+        model_version="XGBoost_Light_100%",
+        timestamp=log_entry.created_at
+    )
 
-@app.get("/predictions", response_model=List[PredictionLogResponse])
-def get_predictions(
-    skip: int = 0, 
-    limit: int = 10, 
+# =============================================================================
+# ENDPOINT 2 : PRÉDICTION POUR UN NOUVEL EMPLOYÉ
+# =============================================================================
+
+@app.post("/predict/new_employee", response_model=PredictionDetailedResponse)
+def predict_new_employee(
+    request: PredictionNewEmployeeRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    🎯 ENDPOINT 2 : Prédiction pour un nouvel employé
+    
+    - Reçoit les features en JSON
+    - Fait une prédiction avec le modèle
+    - Loggue la prédiction dans predictions_logs
+    """
+    
+    # 1. Faire la prédiction
+    prediction_result = model_loader.predict(request.features)
+    
+    # 2. Logger dans predictions_logs
+    features_json = json.dumps(request.features)
+    
+    log_entry = PredictionLog(
+        employee_id=None,  # Pas d'ID car nouvel employé
+        input_features=features_json,
+        prediction_result=prediction_result['prediction'],
+        confidence_score=prediction_result['confidence_score'],
+        model_version=request.model_version
+    )
+    
+    db.add(log_entry)
+    db.commit()
+    db.refresh(log_entry)
+    
+    # 3. Retourner la réponse détaillée
+    return PredictionDetailedResponse(
+        log_id=log_entry.id,
+        employee_id=None,
+        features=request.features,
+        prediction=prediction_result['prediction'],
+        confidence_score=prediction_result['confidence_score'],
+        model_version=request.model_version,
+        timestamp=log_entry.created_at
+    )
+
+# =============================================================================
+# ENDPOINT 3 : RÉCUPÉRER UNE PRÉDICTION VIA LOG_ID
+# =============================================================================
+
+@app.get("/predict/log/{log_id}", response_model=PredictionDetailedResponse)
+def get_prediction_log(
+    log_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    🎯 ENDPOINT 3 : Récupérer une prédiction passée
+    
+    - Récupère un log de prédiction par son ID
+    - Retourne les features + la prédiction + timestamp
+    """
+    
+    # 1. Récupérer le log
+    log_entry = db.query(PredictionLog).filter(PredictionLog.id == log_id).first()
+    if not log_entry:
+        raise HTTPException(status_code=404, detail=f"Log {log_id} non trouvé")
+    
+    # 2. Décoder les features
+    features = json.loads(log_entry.input_features)
+    
+    # 3. Retourner la réponse
+    return PredictionDetailedResponse(
+        log_id=log_entry.id,
+        employee_id=log_entry.employee_id,
+        features=features,
+        prediction=log_entry.prediction_result,
+        confidence_score=log_entry.confidence_score,
+        model_version=log_entry.model_version,
+        timestamp=log_entry.created_at
+    )
+
+# =============================================================================
+# ENDPOINTS POUR LISTER LES LOGS
+# =============================================================================
+
+@app.get("/predictions/logs", response_model=List[PredictionLogResponse])
+def get_prediction_logs(
+    skip: int = 0,
+    limit: int = 10,
     db: Session = Depends(get_db)
 ):
     """Récupérer l'historique des prédictions"""
-    predictions = db.query(PredictionLog).offset(skip).limit(limit).all()
-    return predictions
+    logs = db.query(PredictionLog).order_by(PredictionLog.created_at.desc()).offset(skip).limit(limit).all()
+    return logs
 
-@app.get("/predictions/count")
-def count_predictions(db: Session = Depends(get_db)):
-    """Compter le nombre total de prédictions"""
+@app.get("/predictions/logs/count")
+def count_prediction_logs(db: Session = Depends(get_db)):
+    """Compter le nombre total de prédictions loguées"""
     count = db.query(PredictionLog).count()
     return {"total": count}
 
-@app.get("/predictions/{prediction_id}", response_model=PredictionLogResponse)
-def get_prediction_by_id(prediction_id: int, db: Session = Depends(get_db)):
-    """Récupérer une prédiction spécifique"""
-    prediction = db.query(PredictionLog).filter(PredictionLog.id == prediction_id).first()
-    if not prediction:
-        raise HTTPException(status_code=404, detail="Prédiction non trouvée")
-    return prediction
-
-# ========== STATISTIQUES ==========
+# =============================================================================
+# STATISTIQUES
+# =============================================================================
 
 @app.get("/stats")
 def get_statistics(db: Session = Depends(get_db)):
     """Statistiques générales"""
-    total_training = db.query(TrainingData).count()
+    total_employees = db.query(TrainingData).count()
     total_predictions = db.query(PredictionLog).count()
     
     # Compter les démissions dans les données d'entraînement
     oui_count = db.query(TrainingData).filter(TrainingData.target == "Oui").count()
     non_count = db.query(TrainingData).filter(TrainingData.target == "Non").count()
     
+    # Compter les prédictions
+    pred_oui = db.query(PredictionLog).filter(PredictionLog.prediction_result == "Oui").count()
+    pred_non = db.query(PredictionLog).filter(PredictionLog.prediction_result == "Non").count()
+    
     return {
-        "training_data": {
-            "total": total_training,
+        "employees": {
+            "total": total_employees,
             "demissions_oui": oui_count,
             "demissions_non": non_count
         },
         "predictions": {
-            "total": total_predictions
+            "total": total_predictions,
+            "predicted_oui": pred_oui,
+            "predicted_non": pred_non
+        },
+        "model": {
+            "type": "XGBoost",
+            "version": "Light_100%",
+            "threshold": model_loader.optimal_threshold if model_loader.model else None
         }
     }

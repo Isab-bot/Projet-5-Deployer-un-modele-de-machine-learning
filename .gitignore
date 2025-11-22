@@ -5,7 +5,37 @@ build/
 dist/
 wheels/
 *.egg-info
+*.py[cod]
+*$py.class
+*.so
+.Python
 
 # Virtual environments
 .venv
+
+# Base de données
+*.db
+*.sqlite3
+
+# Modèles ML (fichiers binaires lourds)
+*.pkl
+*.joblib
+*.h5
+*.pb
+
+# Configuration avec infos sensibles
 .env
+*.json
+
+# Fichiers de logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
