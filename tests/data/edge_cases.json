@@ -1,0 +1,34 @@
+[
+  {
+    "description": "Valeurs minimales",
+    "data": {
+      "age": 18,
+      "genre": "M",
+      "statut_marital": "Célibataire",
+      "participation_pee": 0,
+      "distance_domicile_travail": 0,
+      "experiences_precedentes": 0,
+      "annees_experience_totale": 0,
+      "niveau_education": "1",
+      "domaine_etude": "RH",
+      "nb_formations_suivies": 0,
+      "note_evaluation_precedente": 1,
+      "note_evaluation_actuelle": 1,
+      "poste": "Cadre RH",
+      "niveau_hierarchique_poste": 1,
+      "departement": "RH",
+      "annees_dans_l_entreprise": 0,
+      "annees_dans_le_poste_actuel": 0,
+      "annes_sous_responsable_actuel": 0,
+      "satisfaction_environnement": 1,
+      "satisfaction_nature_travail": 1,
+      "satisfaction_equipe": 1,
+      "satisfaction_equilibre_pro_perso": 1,
+      "heure_supplementaires": "Non",
+      "frequence_deplacement": "Jamais",
+      "revenu_mensuel": 1000,
+      "augmentation_salaire_precedent": 0.0,
+      "annees_depuis_la_derniere_promotion": 0
+    }
+  }
+]
