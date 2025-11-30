@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Security
+from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from database import get_db
 from models import TrainingData, PredictionLog
@@ -13,9 +14,59 @@ import json
 from typing import List
 from datetime import datetime
 from model_loader import model_loader
-import logging  
+import logging
+import os
+from dotenv import load_dotenv
 
-logger = logging.getLogger(__name__) 
+logger = logging.getLogger(__name__)
+
+# =============================================================================
+# CHARGEMENT DES VARIABLES D'ENVIRONNEMENT
+# =============================================================================
+
+# Charger les variables depuis .env
+load_dotenv()
+
+# Récupérer l'API Key depuis .env
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    raise ValueError("⚠️ API_KEY non définie dans le fichier .env")
+
+# Définir le header de sécurité pour l'API Key
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# =============================================================================
+# FONCTION DE VALIDATION DE L'API KEY
+# =============================================================================
+
+def verify_api_key(api_key: str = Security(api_key_header)):
+    """
+    Vérifie que l'API Key est valide.
+    
+    Args:
+        api_key: La clé API fournie dans le header X-API-Key
+        
+    Raises:
+        HTTPException 401: Si la clé est absente ou invalide
+        
+    Returns:
+        str: La clé API validée
+    """
+    # Vérifier si la clé est présente
+    if api_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="❌ API Key manquante. Ajoutez le header 'X-API-Key' à votre requête."
+        )
+    
+    # Vérifier si la clé est valide
+    if api_key != API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="❌ API Key invalide. Vérifiez votre clé d'authentification."
+        )
+    
+    return api_key
 
 # =============================================================================
 # INITIALISATION DE L'APPLICATION
@@ -33,28 +84,41 @@ def startup_event():
     model_loader.load_model()
 
 # =============================================================================
-# ENDPOINTS DE BASE
+# ENDPOINTS DE BASE (PUBLICS - SANS AUTHENTIFICATION)
 # =============================================================================
 
 @app.get("/")
 def root():
+    """
+    🏠 Endpoint racine - PUBLIC
+    
+    Affiche les informations de base de l'API.
+    Aucune authentification requise.
+    """
     return {
         "message": "API de Prédiction de Démission - XGBoost",
         "version": "2.0.0",
         "model": "XGBoost Light 100%",
+        "security": "🔒 Endpoints protégés par API Key (header X-API-Key)",
         "endpoints": {
             "documentation": "/docs",
             "health": "/health",
             "employees": "/employees",
-            "predict_from_id": "/predict/from_id/{employee_id}",
-            "predict_new_employee": "/predict/new_employee",
-            "get_prediction_log": "/predict/log/{log_id}",
+            "predict_from_id": "/predict/from_id/{employee_id} 🔒",
+            "predict_new_employee": "/predict/new_employee 🔒",
+            "get_prediction_log": "/predict/log/{log_id} 🔒",
             "statistics": "/stats"
         }
     }
 
 @app.get("/health")
 def health_check():
+    """
+    ❤️ Endpoint de santé - PUBLIC
+    
+    Vérifie que l'API fonctionne correctement.
+    Aucune authentification requise.
+    """
     return {
         "status": "healthy",
         "model_loaded": model_loader.pipeline is not None,
@@ -62,7 +126,7 @@ def health_check():
     }
 
 # =============================================================================
-# ENDPOINTS EMPLOYEES (DONNÉES D'ENTRAÎNEMENT)
+# ENDPOINTS EMPLOYEES (PUBLICS - CONSULTABLES SANS AUTHENTIFICATION)
 # =============================================================================
 
 @app.get("/employees", response_model=List[EmployeeResponse])
@@ -71,19 +135,31 @@ def get_employees(
     limit: int = 10, 
     db: Session = Depends(get_db)
 ):
-    """Récupérer les employés (pagination)"""
+    """
+    📋 Récupérer les employés (pagination) - PUBLIC
+    
+    Aucune authentification requise pour consulter la liste.
+    """
     employees = db.query(TrainingData).offset(skip).limit(limit).all()
     return employees
 
 @app.get("/employees/count")
 def count_employees(db: Session = Depends(get_db)):
-    """Compter le nombre total d'employés"""
+    """
+    🔢 Compter le nombre total d'employés - PUBLIC
+    
+    Aucune authentification requise.
+    """
     count = db.query(TrainingData).count()
     return {"total": count}
 
 @app.get("/employees/{employee_id}", response_model=EmployeeResponse)
 def get_employee_by_id(employee_id: int, db: Session = Depends(get_db)):
-    """Récupérer un employé spécifique"""
+    """
+    👤 Récupérer un employé spécifique - PUBLIC
+    
+    Aucune authentification requise pour consulter.
+    """
     try:
         employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
         if not employee:
@@ -104,16 +180,19 @@ def get_employee_by_id(employee_id: int, db: Session = Depends(get_db)):
         )
 
 # =============================================================================
-# ENDPOINT 1 : PRÉDICTION À PARTIR D'UN ID EXISTANT
+# ENDPOINT 1 : PRÉDICTION À PARTIR D'UN ID EXISTANT 🔒 PROTÉGÉ
 # =============================================================================
 
 @app.post("/predict/from_id/{employee_id}", response_model=PredictionDetailedResponse)
 def predict_from_employee_id(
     employee_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)  # 🔒 AUTHENTIFICATION REQUISE
 ):
     """
-    🎯 ENDPOINT 1 : Prédiction à partir d'un employé existant
+    🎯 ENDPOINT 1 : Prédiction à partir d'un employé existant - 🔒 PROTÉGÉ
+    
+    ⚠️ Requiert une API Key valide dans le header X-API-Key
     
     - Récupère les features de l'employé depuis la DB
     - Fait une prédiction avec le modèle
@@ -177,17 +256,21 @@ def predict_from_employee_id(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la prédiction : {str(e)}"
         )
+
 # =============================================================================
-# ENDPOINT 2 : PRÉDICTION POUR UN NOUVEL EMPLOYÉ
+# ENDPOINT 2 : PRÉDICTION POUR UN NOUVEL EMPLOYÉ 🔒 PROTÉGÉ
 # =============================================================================
 
 @app.post("/predict/new_employee", response_model=PredictionDetailedResponse)
 def predict_new_employee(
     request: PredictionNewEmployeeRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)  # 🔒 AUTHENTIFICATION REQUISE
 ):
     """
-    🎯 ENDPOINT 2 : Prédiction pour un nouvel employé
+    🎯 ENDPOINT 2 : Prédiction pour un nouvel employé - 🔒 PROTÉGÉ
+    
+    ⚠️ Requiert une API Key valide dans le header X-API-Key
     
     - Reçoit les features en JSON
     - Fait une prédiction avec le modèle
@@ -195,7 +278,7 @@ def predict_new_employee(
     """
     try:
         # Vérifier que le modèle est chargé
-        if model_loader.pipeline is None:
+        if model_loader.pipeline is None:  # ✅ CORRECTION : pipeline au lieu de model
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Le modèle n'est pas chargé. Veuillez réessayer dans quelques instants."
@@ -240,17 +323,21 @@ def predict_new_employee(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la prédiction : {str(e)}"
         )
+
 # =============================================================================
-# ENDPOINT 3 : RÉCUPÉRER UNE PRÉDICTION VIA LOG_ID
+# ENDPOINT 3 : RÉCUPÉRER UNE PRÉDICTION VIA LOG_ID 🔒 PROTÉGÉ
 # =============================================================================
 
 @app.get("/predict/log/{log_id}", response_model=PredictionDetailedResponse)
 def get_prediction_log(
     log_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)  # 🔒 AUTHENTIFICATION REQUISE
 ):
     """
-    🎯 ENDPOINT 3 : Récupérer une prédiction passée
+    🎯 ENDPOINT 3 : Récupérer une prédiction passée - 🔒 PROTÉGÉ
+    
+    ⚠️ Requiert une API Key valide dans le header X-API-Key
     
     - Récupère un log de prédiction par son ID
     - Retourne les features + la prédiction + timestamp
@@ -289,32 +376,48 @@ def get_prediction_log(
         )
 
 # =============================================================================
-# ENDPOINTS POUR LISTER LES LOGS
+# ENDPOINTS POUR LISTER LES LOGS 🔒 PROTÉGÉ
 # =============================================================================
 
 @app.get("/predictions/logs", response_model=List[PredictionLogResponse])
 def get_prediction_logs(
     skip: int = 0,
     limit: int = 10,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)  # 🔒 AUTHENTIFICATION REQUISE
 ):
-    """Récupérer l'historique des prédictions"""
+    """
+    📜 Récupérer l'historique des prédictions - 🔒 PROTÉGÉ
+    
+    ⚠️ Requiert une API Key valide dans le header X-API-Key
+    """
     logs = db.query(PredictionLog).order_by(PredictionLog.created_at.desc()).offset(skip).limit(limit).all()
     return logs
 
 @app.get("/predictions/logs/count")
-def count_prediction_logs(db: Session = Depends(get_db)):
-    """Compter le nombre total de prédictions loguées"""
+def count_prediction_logs(
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)  # 🔒 AUTHENTIFICATION REQUISE
+):
+    """
+    🔢 Compter le nombre total de prédictions loguées - 🔒 PROTÉGÉ
+    
+    ⚠️ Requiert une API Key valide dans le header X-API-Key
+    """
     count = db.query(PredictionLog).count()
     return {"total": count}
 
 # =============================================================================
-# STATISTIQUES
+# STATISTIQUES (PUBLIC)
 # =============================================================================
 
 @app.get("/stats")
 def get_statistics(db: Session = Depends(get_db)):
-    """Statistiques générales"""
+    """
+    📊 Statistiques générales - PUBLIC
+    
+    Aucune authentification requise pour consulter les stats.
+    """
     total_employees = db.query(TrainingData).count()
     total_predictions = db.query(PredictionLog).count()
     
@@ -340,6 +443,6 @@ def get_statistics(db: Session = Depends(get_db)):
         "model": {
             "type": "XGBoost",
             "version": "Light_100%",
-            "threshold": model_loader.optimal_threshold if model_loader.pipeline else None
+            "threshold": model_loader.optimal_threshold if model_loader.pipeline else None  # ✅ CORRECTION
         }
     }
