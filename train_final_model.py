@@ -173,42 +173,32 @@ print(f"   ROC-AUC : {roc_auc:.4f}")
 # 9. SAUVEGARDE
 # =============================================================================
 
-print("\n💾 Sauvegarde des fichiers...")
+print("\n💾 Sauvegarde du modèle...")
 
-# Sauvegarder le pipeline complet
-joblib.dump(pipeline_final, 'xgboost_model.pkl')
-print("✅ xgboost_model.pkl sauvegardé")
+import os
+os.makedirs("models", exist_ok=True)
 
-# Sauvegarder le preprocessor séparément (au cas où)
-joblib.dump(preprocessor_cat, 'preprocessor.pkl')
-print("✅ preprocessor.pkl sauvegardé")
-
-# Sauvegarder la liste des features
-joblib.dump(feature_names, 'feature_names.pkl')
-print("✅ feature_names.pkl sauvegardé")
-
-# Sauvegarder la configuration
-config = {
-    'optimal_threshold': optimal_threshold,
-    'scale_pos_weight': scale_pos_weight,
-    'n_features': len(feature_names),
-    'feature_names': feature_names,
-    'hyperparameters': {
-        'colsample_bytree': 0.8,
-        'learning_rate': 0.05,
-        'max_depth': 3,
-        'min_child_weight': 5,
+# Créer un dictionnaire avec TOUT
+saved_data = {
+    'pipeline': pipeline_final,
+    'config': {
+        'model_name': 'XGBoost',
+        'version': '1.0.0',
+        'scale_pos_weight': scale_pos_weight,
         'n_estimators': 100,
-        'subsample': 0.8
+        'max_depth': 6,
+        'learning_rate': 0.1
     },
-    'model_type': 'XGBoost',
-    'model_version': 'Light_100%',
-    'f2_score': 0.6818
+    'feature_names': feature_names,
+    'optimal_threshold': 0.09
 }
 
-with open('model_config.json', 'w') as f:
-    json.dump(config, f, indent=4)
-print("✅ model_config.json sauvegardé")
+# Sauvegarder dans UN SEUL fichier
+import pickle
+with open('models/xgboost_pipeline.pkl', 'wb') as f:
+    pickle.dump(saved_data, f)
+
+print("✅ Modèle sauvegardé dans models/xgboost_pipeline.pkl")
 
 # =============================================================================
 # 10. RÉCAPITULATIF

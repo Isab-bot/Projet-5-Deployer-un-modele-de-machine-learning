@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
 from models import TrainingData, PredictionLog
@@ -13,6 +13,9 @@ import json
 from typing import List
 from datetime import datetime
 from model_loader import model_loader
+import logging  
+
+logger = logging.getLogger(__name__) 
 
 # =============================================================================
 # INITIALISATION DE L'APPLICATION
@@ -27,7 +30,7 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     """Charger le modèle ML au démarrage de l'application"""
-    model_loader.load()
+    model_loader.load_model()
 
 # =============================================================================
 # ENDPOINTS DE BASE
@@ -54,7 +57,7 @@ def root():
 def health_check():
     return {
         "status": "healthy",
-        "model_loaded": model_loader.model is not None,
+        "model_loaded": model_loader.pipeline is not None,
         "timestamp": datetime.utcnow().isoformat()
     }
 
@@ -81,10 +84,24 @@ def count_employees(db: Session = Depends(get_db)):
 @app.get("/employees/{employee_id}", response_model=EmployeeResponse)
 def get_employee_by_id(employee_id: int, db: Session = Depends(get_db)):
     """Récupérer un employé spécifique"""
-    employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
-    if not employee:
-        raise HTTPException(status_code=404, detail="Employé non trouvé")
-    return employee
+    try:
+        employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
+        if not employee:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Employé avec l'ID {employee_id} non trouvé"
+            )
+        return employee
+    
+    except HTTPException:
+        raise
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération de l'employé {employee_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération de l'employé"
+        )
 
 # =============================================================================
 # ENDPOINT 1 : PRÉDICTION À PARTIR D'UN ID EXISTANT
@@ -102,44 +119,64 @@ def predict_from_employee_id(
     - Fait une prédiction avec le modèle
     - Loggue la prédiction dans predictions_logs
     """
+    try:
+        # Vérifier que le modèle est chargé
+        if model_loader.pipeline is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Le modèle n'est pas chargé. Veuillez réessayer dans quelques instants."
+            )
+        
+        # 1. Récupérer l'employé
+        employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
+        if not employee:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Employé {employee_id} non trouvé"
+            )
+        
+        # 2. Décoder les features (JSON → dict)
+        features = json.loads(employee.features)
+        
+        # 3. Faire la prédiction
+        prediction_result = model_loader.predict(features)
+        
+        # 4. Logger dans predictions_logs
+        features_json = json.dumps(features)
+        
+        log_entry = PredictionLog(
+            employee_id=employee_id,
+            input_features=features_json,
+            prediction_result=prediction_result['prediction'],
+            confidence_score=prediction_result['confidence_score'],
+            model_version="XGBoost_Light_100%"
+        )
+        
+        db.add(log_entry)
+        db.commit()
+        db.refresh(log_entry)
+        
+        # 5. Retourner la réponse détaillée
+        return PredictionDetailedResponse(
+            log_id=log_entry.id,
+            employee_id=employee_id,
+            features=features,
+            prediction=prediction_result['prediction'],
+            confidence_score=prediction_result['confidence_score'],
+            model_version="XGBoost_Light_100%",
+            timestamp=log_entry.created_at
+        )
     
-    # 1. Récupérer l'employé
-    employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
-    if not employee:
-        raise HTTPException(status_code=404, detail=f"Employé {employee_id} non trouvé")
+    except HTTPException:
+        raise
     
-    # 2. Décoder les features (JSON → dict)
-    features = json.loads(employee.features)
-    
-    # 3. Faire la prédiction
-    prediction_result = model_loader.predict(features)
-    
-    # 4. Logger dans predictions_logs
-    features_json = json.dumps(features)
-    
-    log_entry = PredictionLog(
-        employee_id=employee_id,
-        input_features=features_json,
-        prediction_result=prediction_result['prediction'],
-        confidence_score=prediction_result['confidence_score'],
-        model_version="XGBoost_Light_100%"
-    )
-    
-    db.add(log_entry)
-    db.commit()
-    db.refresh(log_entry)
-    
-    # 5. Retourner la réponse détaillée
-    return PredictionDetailedResponse(
-        log_id=log_entry.id,
-        employee_id=employee_id,
-        features=features,
-        prediction=prediction_result['prediction'],
-        confidence_score=prediction_result['confidence_score'],
-        model_version="XGBoost_Light_100%",
-        timestamp=log_entry.created_at
-    )
-
+    except Exception as e:
+        logger.error(f"Erreur lors de la prédiction pour l'employé {employee_id}: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la prédiction : {str(e)}"
+        )
 # =============================================================================
 # ENDPOINT 2 : PRÉDICTION POUR UN NOUVEL EMPLOYÉ
 # =============================================================================
@@ -156,36 +193,53 @@ def predict_new_employee(
     - Fait une prédiction avec le modèle
     - Loggue la prédiction dans predictions_logs
     """
+    try:
+        # Vérifier que le modèle est chargé
+        if model_loader.pipeline is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Le modèle n'est pas chargé. Veuillez réessayer dans quelques instants."
+            )
+        
+        # 1. Faire la prédiction
+        prediction_result = model_loader.predict(request.features)
+        
+        # 2. Logger dans predictions_logs
+        features_json = json.dumps(request.features)
+        
+        log_entry = PredictionLog(
+            employee_id=None,  # Pas d'ID car nouvel employé
+            input_features=features_json,
+            prediction_result=prediction_result['prediction'],
+            confidence_score=prediction_result['confidence_score'],
+            model_version=request.model_version
+        )
+        
+        db.add(log_entry)
+        db.commit()
+        db.refresh(log_entry)
+        
+        # 3. Retourner la réponse détaillée
+        return PredictionDetailedResponse(
+            log_id=log_entry.id,
+            employee_id=None,
+            features=request.features,
+            prediction=prediction_result['prediction'],
+            confidence_score=prediction_result['confidence_score'],
+            model_version=request.model_version,
+            timestamp=log_entry.created_at
+        )
     
-    # 1. Faire la prédiction
-    prediction_result = model_loader.predict(request.features)
+    except HTTPException:
+        raise
     
-    # 2. Logger dans predictions_logs
-    features_json = json.dumps(request.features)
-    
-    log_entry = PredictionLog(
-        employee_id=None,  # Pas d'ID car nouvel employé
-        input_features=features_json,
-        prediction_result=prediction_result['prediction'],
-        confidence_score=prediction_result['confidence_score'],
-        model_version=request.model_version
-    )
-    
-    db.add(log_entry)
-    db.commit()
-    db.refresh(log_entry)
-    
-    # 3. Retourner la réponse détaillée
-    return PredictionDetailedResponse(
-        log_id=log_entry.id,
-        employee_id=None,
-        features=request.features,
-        prediction=prediction_result['prediction'],
-        confidence_score=prediction_result['confidence_score'],
-        model_version=request.model_version,
-        timestamp=log_entry.created_at
-    )
-
+    except Exception as e:
+        logger.error(f"Erreur lors de la prédiction pour un nouvel employé: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la prédiction : {str(e)}"
+        )
 # =============================================================================
 # ENDPOINT 3 : RÉCUPÉRER UNE PRÉDICTION VIA LOG_ID
 # =============================================================================
@@ -201,25 +255,38 @@ def get_prediction_log(
     - Récupère un log de prédiction par son ID
     - Retourne les features + la prédiction + timestamp
     """
+    try:
+        # 1. Récupérer le log
+        log_entry = db.query(PredictionLog).filter(PredictionLog.id == log_id).first()
+        if not log_entry:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Log {log_id} non trouvé"
+            )
+        
+        # 2. Décoder les features
+        features = json.loads(log_entry.input_features)
+        
+        # 3. Retourner la réponse
+        return PredictionDetailedResponse(
+            log_id=log_entry.id,
+            employee_id=log_entry.employee_id,
+            features=features,
+            prediction=log_entry.prediction_result,
+            confidence_score=log_entry.confidence_score,
+            model_version=log_entry.model_version,
+            timestamp=log_entry.created_at
+        )
     
-    # 1. Récupérer le log
-    log_entry = db.query(PredictionLog).filter(PredictionLog.id == log_id).first()
-    if not log_entry:
-        raise HTTPException(status_code=404, detail=f"Log {log_id} non trouvé")
+    except HTTPException:
+        raise
     
-    # 2. Décoder les features
-    features = json.loads(log_entry.input_features)
-    
-    # 3. Retourner la réponse
-    return PredictionDetailedResponse(
-        log_id=log_entry.id,
-        employee_id=log_entry.employee_id,
-        features=features,
-        prediction=log_entry.prediction_result,
-        confidence_score=log_entry.confidence_score,
-        model_version=log_entry.model_version,
-        timestamp=log_entry.created_at
-    )
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération du log {log_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur interne lors de la récupération du log"
+        )
 
 # =============================================================================
 # ENDPOINTS POUR LISTER LES LOGS
@@ -273,6 +340,6 @@ def get_statistics(db: Session = Depends(get_db)):
         "model": {
             "type": "XGBoost",
             "version": "Light_100%",
-            "threshold": model_loader.optimal_threshold if model_loader.model else None
+            "threshold": model_loader.optimal_threshold if model_loader.pipeline else None
         }
     }

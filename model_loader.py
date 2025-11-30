@@ -3,38 +3,51 @@ import json
 from typing import Dict, Any
 import numpy as np
 import pandas as pd
+import logging
+from pathlib import Path
+import pickle 
+
+logger = logging.getLogger(__name__)
 
 class ModelLoader:
-    """Classe pour charger et utiliser le modèle XGBoost"""
-    
-    def __init__(self):
-        self.model = None
+    def __init__(self, model_path: str = "models/xgboost_pipeline.pkl"):
+        self.model_path = Path(model_path)
+        self.pipeline = None
         self.config = None
         self.feature_names = None
         self.optimal_threshold = None
         
-    def load(self):
-        """Charger tous les fichiers du modèle"""
-        print("📦 Chargement du modèle XGBoost...")
-        
-        # Charger le pipeline (modèle + preprocessor)
-        self.model = joblib.load('xgboost_model.pkl')
-        print("   ✅ Pipeline chargé")
-        
-        # Charger la configuration
-        with open('model_config.json', 'r') as f:
-            self.config = json.load(f)
-        print("   ✅ Configuration chargée")
-        
-        # Charger les noms de features
-        self.feature_names = joblib.load('feature_names.pkl')
-        print(f"   ✅ {len(self.feature_names)} features chargées")
-        
-        # Récupérer le seuil optimal
-        self.optimal_threshold = self.config['optimal_threshold']
-        print(f"   ✅ Seuil optimal : {self.optimal_threshold}")
-        
-        print("🎉 Modèle prêt !\n")
+    def load_model(self):
+        """Charge le modèle avec gestion d'erreurs."""
+        try:
+            # Vérifier que le fichier existe
+            if not self.model_path.exists():
+                raise FileNotFoundError(
+                    f"❌ Modèle non trouvé : {self.model_path}\n"
+                    f"💡 Assurez-vous d'avoir exécuté 'python train_final_model.py'"
+                )
+            
+            # Charger le modèle
+            with open(self.model_path, 'rb') as f:
+                saved_data = pickle.load(f)
+            
+            self.pipeline = saved_data['pipeline']
+            self.config = saved_data['config']
+            self.feature_names = saved_data['feature_names']
+            self.optimal_threshold = saved_data['optimal_threshold']
+            
+            logger.info(f"✅ Modèle chargé : {len(self.feature_names)} features")
+            
+        except FileNotFoundError as e:
+            logger.error(str(e))
+            raise
+            
+        except Exception as e:
+            logger.error(f"❌ Erreur lors du chargement du modèle : {e}")
+            raise RuntimeError(
+                f"Impossible de charger le modèle depuis {self.model_path}. "
+                f"Erreur : {e}"
+            )
         
     def predict(self, features: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -60,7 +73,7 @@ class ModelLoader:
         df = df[self.feature_names]
         
         # Prédiction (probabilité)
-        proba = self.model.predict_proba(df)[0, 1]
+        proba = self.pipeline.predict_proba(df)[0, 1]
         
         # Prédiction (classe) avec seuil optimal
         prediction = "Oui" if proba >= self.optimal_threshold else "Non"

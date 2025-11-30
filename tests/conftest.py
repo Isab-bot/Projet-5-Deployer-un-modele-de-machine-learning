@@ -106,7 +106,7 @@ def model_loader_instance():
     from model_loader import ModelLoader
     
     loader = ModelLoader()
-    loader.load()
+    loader.load_model()
     
     return loader
 
