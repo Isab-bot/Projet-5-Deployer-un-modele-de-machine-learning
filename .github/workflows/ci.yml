@@ -39,5 +39,6 @@ jobs:
     - name: Run tests with pytest
       env:
         API_KEY: ${{ secrets.API_KEY }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
         pytest tests/ -v --tb=short
