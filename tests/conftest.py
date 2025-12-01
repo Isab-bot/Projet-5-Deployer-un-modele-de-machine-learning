@@ -66,16 +66,21 @@ def db_session():
 def client(db_session):
     """
     Fixture pour le client de test FastAPI.
-    Configure la base de données ET l'API Key pour les tests.
+    Configure la base de données ET bypass l'authentification pour les tests.
     """
+    from main import verify_api_key
+    
     def override_get_db():
         yield db_session
-
-    # Override de la base de données
-    app.dependency_overrides[get_db] = override_get_db
     
-    # ✅ Définir l'API Key pour les tests
-    os.environ["API_KEY"] = "test-api-key-for-ci"
+    # 🔓 Mock de la fonction verify_api_key pour les tests
+    def mock_verify_api_key():
+        """Toujours valide en mode test"""
+        return "test-api-key"
+    
+    # Override de la base de données ET de l'authentification
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[verify_api_key] = mock_verify_api_key
 
     with TestClient(app) as test_client:
         yield test_client
