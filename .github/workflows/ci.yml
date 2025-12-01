@@ -1,0 +1,43 @@
+name: CI - Tests automatiques
+
+# Quand déclencher le workflow
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# Les jobs à exécuter
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. Récupérer le code
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # 2. Installer Python
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    
+    # 3. Installer les dépendances
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    # 4. Créer le dossier models et le fichier modèle
+    - name: Setup model directory
+      run: |
+        mkdir -p models
+        python train_final_model.py
+    
+    # 5. Lancer les tests
+    - name: Run tests with pytest
+      env:
+        API_KEY: ${{ secrets.API_KEY }}
+      run: |
+        pytest tests/ -v --tb=short
