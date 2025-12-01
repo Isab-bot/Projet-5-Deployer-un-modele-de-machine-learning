@@ -9,6 +9,11 @@ import pytest
 from sqlalchemy.orm import Session
 from models import TrainingData, PredictionLog
 
+# Headers avec API Key pour les tests
+@pytest.fixture
+def api_headers():
+    """Headers d'authentification pour les tests."""
+    return {"X-API-Key": "test-api-key-for-ci"}
 
 # =============================================================================
 # RE
@@ -57,7 +62,7 @@ def setup_test_data(db_session):
 # ENDPOINT 1 : POST /predict/from_id/{employee_id}
 # =============================================================================
 
-def test_predict_from_id_success(client, setup_test_data):
+def test_predict_from_id_success(client, setup_test_data, api_headers):
     """
     OBJECTIF : Tester une prédiction depuis un employé existant.
     
@@ -69,7 +74,7 @@ def test_predict_from_id_success(client, setup_test_data):
     - Un log est créé en base de données
     """
     # Act : Appeler l'endpoint
-    response = client.post("/predict/from_id/1")
+    response = client.post("/predict/from_id/1", headers=api_headers)
     
     # Assert : Vérifier la réponse
     assert response.status_code == 200, f"Code inattendu : {response.status_code}"
@@ -89,7 +94,7 @@ def test_predict_from_id_success(client, setup_test_data):
     assert 0 <= data['confidence_score'] <= 1
 
 
-def test_predict_from_id_not_found(client):
+def test_predict_from_id_not_found(client, api_headers):
     """
     OBJECTIF : Tester avec un ID d'employé inexistant.
     
@@ -100,7 +105,7 @@ def test_predict_from_id_not_found(client):
     - Message d'erreur approprié
     """
     # Act : Appeler avec un ID qui n'existe pas
-    response = client.post("/predict/from_id/99999")
+    response = client.post("/predict/from_id/99999", headers=api_headers)
     
     # Assert
     assert response.status_code == 404, f"Code attendu : 404, reçu : {response.status_code}"
@@ -109,7 +114,7 @@ def test_predict_from_id_not_found(client):
     assert 'detail' in data, "Message d'erreur manquant"
 
 
-def test_predict_from_id_creates_log(client, setup_test_data, db_session):
+def test_predict_from_id_creates_log(client, setup_test_data, db_session, api_headers):
     """
     OBJECTIF : Vérifier qu'un log de prédiction est créé en base de données.
     
@@ -123,7 +128,7 @@ def test_predict_from_id_creates_log(client, setup_test_data, db_session):
     logs_before = db_session.query(PredictionLog).count()
     
     # Act : Faire une prédiction
-    response = client.post("/predict/from_id/1")
+    response = client.post("/predict/from_id/1", headers=api_headers)
     assert response.status_code == 200
     
     # Assert : Vérifier qu'un log a été créé
@@ -141,7 +146,7 @@ def test_predict_from_id_creates_log(client, setup_test_data, db_session):
 # ENDPOINT 2 : POST /predict/new_employee
 # =============================================================================
 
-def test_predict_new_employee_success(client, valid_employee_data):
+def test_predict_new_employee_success(client, valid_employee_data, api_headers):
     """
     OBJECTIF : Tester une prédiction pour un nouvel employé.
     
@@ -159,7 +164,7 @@ def test_predict_new_employee_success(client, valid_employee_data):
     }
     
     # Act : Appeler l'endpoint
-    response = client.post("/predict/new_employee", json=payload)
+    response = client.post("/predict/new_employee", json=payload, headers=api_headers)
     
     # Assert : Vérifier la réponse
     assert response.status_code == 200, f"Code inattendu : {response.status_code}"
@@ -177,7 +182,7 @@ def test_predict_new_employee_success(client, valid_employee_data):
     assert data['prediction'] in ['Oui', 'Non']
 
 
-def test_predict_new_employee_invalid_data(client):
+def test_predict_new_employee_invalid_data(client, api_headers):
     """
     OBJECTIF : Tester avec des données invalides.
     
@@ -193,13 +198,13 @@ def test_predict_new_employee_invalid_data(client):
     }
     
     # Act
-    response = client.post("/predict/new_employee", json=payload)
+    response = client.post("/predict/new_employee", json=payload, headers=api_headers)
     
     # Assert
     assert response.status_code == 422, f"Code attendu : 422, reçu : {response.status_code}"
 
 
-def test_predict_new_employee_creates_log(client, valid_employee_data, db_session):
+def test_predict_new_employee_creates_log(client, valid_employee_data, db_session, api_headers):
     """
     OBJECTIF : Vérifier qu'un log est créé pour un nouvel employé.
     
@@ -217,7 +222,7 @@ def test_predict_new_employee_creates_log(client, valid_employee_data, db_sessio
     logs_before = db_session.query(PredictionLog).count()
     
     # Act
-    response = client.post("/predict/new_employee", json=payload)
+    response = client.post("/predict/new_employee", json=payload, headers=api_headers)
     assert response.status_code == 200
     
     # Assert
@@ -229,7 +234,7 @@ def test_predict_new_employee_creates_log(client, valid_employee_data, db_sessio
     assert log.employee_id is None  # Nouvel employé
 
 
-def test_predict_new_employee_empty_features(client):
+def test_predict_new_employee_empty_features(client, api_headers):
     """
     OBJECTIF : Tester avec un dict de features vide.
     
@@ -246,7 +251,7 @@ def test_predict_new_employee_empty_features(client):
     }
     
     # Act
-    response = client.post("/predict/new_employee", json=payload)
+    response = client.post("/predict/new_employee", json=payload, headers=api_headers)
     
     # Assert : Le comportement dépend de votre implémentation
     # Option 1 : Le modèle accepte et utilise des valeurs par défaut
@@ -258,7 +263,7 @@ def test_predict_new_employee_empty_features(client):
 # ENDPOINT 3 : GET /predict/log/{log_id}
 # =============================================================================
 
-def test_get_prediction_log_success(client, setup_test_data, db_session):
+def test_get_prediction_log_success(client, setup_test_data, db_session, api_headers):
     """
     OBJECTIF : Récupérer un log de prédiction existant.
     
@@ -269,12 +274,12 @@ def test_get_prediction_log_success(client, setup_test_data, db_session):
     - Réponse contient toutes les informations du log
     """
     # Arrange : Créer une prédiction d'abord
-    response_predict = client.post("/predict/from_id/1")
+    response_predict = client.post("/predict/from_id/1", headers=api_headers)
     assert response_predict.status_code == 200
     log_id = response_predict.json()['log_id']
     
     # Act : Récupérer le log
-    response = client.get(f"/predict/log/{log_id}")
+    response_log = client.get(f"/predict/log/{log_id}", headers=api_headers)
     
     # Assert
     assert response.status_code == 200
@@ -287,7 +292,7 @@ def test_get_prediction_log_success(client, setup_test_data, db_session):
     assert data['log_id'] == log_id
 
 
-def test_get_prediction_log_not_found(client):
+def test_get_prediction_log_not_found(client, api_headers):
     """
     OBJECTIF : Tester avec un log_id inexistant.
     
@@ -297,13 +302,13 @@ def test_get_prediction_log_not_found(client):
     - Status code 404
     """
     # Act : Chercher un log qui n'existe pas
-    response = client.get("/predict/log/99999")
+    response = client.get("/predict/log/99999", headers=api_headers)
     
     # Assert
     assert response.status_code == 404
 
 
-def test_get_prediction_log_content(client, setup_test_data):
+def test_get_prediction_log_content(client, setup_test_data, api_headers):
     """
     OBJECTIF : Vérifier que le contenu du log est correct.
     
@@ -314,12 +319,12 @@ def test_get_prediction_log_content(client, setup_test_data):
     - La prédiction est cohérente
     """
     # Arrange : Faire une prédiction
-    response_predict = client.post("/predict/from_id/1")
+    response_predict = client.post("/predict/from_id/1", headers=api_headers)
     predicted_result = response_predict.json()['prediction']
     log_id = response_predict.json()['log_id']
     
     # Act : Récupérer le log
-    response = client.get(f"/predict/log/{log_id}")
+    response = client.get(f"/predict/log/{log_id}",headers=api_headers)
     
     # Assert
     data = response.json()
@@ -333,7 +338,7 @@ def test_get_prediction_log_content(client, setup_test_data):
 # TESTS DE PERFORMANCE
 # =============================================================================
 
-def test_api_response_time(client, setup_test_data):
+def test_api_response_time(client, setup_test_data,api_headers):
     """
     OBJECTIF : Vérifier que l'API répond en moins de 2 secondes.
     
@@ -346,7 +351,7 @@ def test_api_response_time(client, setup_test_data):
     
     # Act : Mesurer le temps de réponse
     start = time.time()
-    response = client.post("/predict/from_id/1")
+    response = client.post("/predict/from_id/1",headers=api_headers)
     duration = time.time() - start
     
     # Assert
@@ -360,7 +365,7 @@ def test_api_response_time(client, setup_test_data):
 # TESTS D'INTÉGRATION (WORKFLOW COMPLET)
 # =============================================================================
 
-def test_full_prediction_workflow(client, valid_employee_data, db_session):
+def test_full_prediction_workflow(client, valid_employee_data, db_session, api_headers):
     """
     OBJECTIF : Tester un workflow complet de bout en bout.
     
@@ -380,7 +385,7 @@ def test_full_prediction_workflow(client, valid_employee_data, db_session):
         "features": valid_employee_data,
         "model_version": "v1.0"
     }
-    response1 = client.post("/predict/new_employee", json=payload)
+    response1 = client.post("/predict/new_employee", json=payload, headers=api_headers)
     assert response1.status_code == 200
     
     prediction_data = response1.json()
@@ -388,7 +393,7 @@ def test_full_prediction_workflow(client, valid_employee_data, db_session):
     predicted_result = prediction_data['prediction']
     
     # Étape 2 : Récupérer le log
-    response2 = client.get(f"/predict/log/{log_id}")
+    response2 = client.get(f"/predict/log/{log_id}", headers=api_headers)
     assert response2.status_code == 200
     
     log_data = response2.json()

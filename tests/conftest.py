@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+import os
 
 # Ajouter le dossier parent au path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -61,19 +62,25 @@ def db_session():
     Base.metadata.drop_all(bind=test_engine)
 
 
-@pytest.fixture(scope="module")  # ← scope="module"
+@pytest.fixture(scope="module")
 def client(db_session):
     """
     Fixture pour le client de test FastAPI.
+    Configure la base de données ET l'API Key pour les tests.
     """
     def override_get_db():
         yield db_session
-    
+
+    # Override de la base de données
     app.dependency_overrides[get_db] = override_get_db
     
+    # ✅ Définir l'API Key pour les tests
+    os.environ["API_KEY"] = "test-api-key-for-ci"
+
     with TestClient(app) as test_client:
         yield test_client
     
+    # Nettoyer les overrides
     app.dependency_overrides.clear()
 
 
