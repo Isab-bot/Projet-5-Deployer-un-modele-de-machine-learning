@@ -1,0 +1,40 @@
+# Environnements virtuels
+.venv
+venv/
+env/
+
+# Fichiers Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Tests et cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets (CRITIQUE)
+.env
+
+# Base de données locale
+*.db
+
+# Logs
+*.log
+
+# Documentation
+*.md
+!README.md
+
+# GitHub
+.github/
