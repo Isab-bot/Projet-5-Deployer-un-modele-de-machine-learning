@@ -17,15 +17,18 @@ wheels/
 *.db
 *.sqlite3
 
-# Modèles ML (fichiers binaires lourds)
+# Modèles ML et données
 *.pkl
-*.joblib
 *.h5
 *.pb
 
+# Fichiers joblib (sauf exceptions)
+*.joblib
+!01_classe.joblib
+!models/xgboost_pipeline.joblib
+
 # Configuration avec infos sensibles
 .env
-*.json
 
 # Fichiers de logs
 *.log
@@ -40,6 +43,8 @@ wheels/
 .DS_Store
 Thumbs.db
 
-*.pkl
-*.joblib
-!models/*.joblib
+# Archive (fichiers à supprimer plus tard)
+archives/
+
+# Pytest cache
+.pytest_cache/
