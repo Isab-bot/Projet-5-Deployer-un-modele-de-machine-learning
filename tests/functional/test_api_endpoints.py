@@ -7,7 +7,7 @@ requête HTTP → traitement → base de données → modèle → réponse JSON.
 
 import pytest
 from sqlalchemy.orm import Session
-from models import TrainingData, PredictionLog
+from models import Employee, PredictionLog
 
 
     
@@ -37,7 +37,7 @@ def setup_test_data(db_session):
         features = json.load(f)
     
     # Créer un employé de test
-    employee = TrainingData(
+    employee = Employee(
         id=1,
         features=json.dumps(features),
         target="Non"
@@ -49,7 +49,7 @@ def setup_test_data(db_session):
     yield employee
     
     # Cleanup : supprimer après le test
-    db_session.query(TrainingData).delete()
+    db_session.query(Employee).delete()
     db_session.query(PredictionLog).delete()
     db_session.commit()
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from database import get_db
-from models import TrainingData, PredictionLog
+from models import Employee, PredictionLog
 from schemas import (
     EmployeeResponse, 
     PredictionFromIdRequest, 
@@ -140,7 +140,7 @@ def get_employees(
     
     Aucune authentification requise pour consulter la liste.
     """
-    employees = db.query(TrainingData).offset(skip).limit(limit).all()
+    employees = db.query(Employee).offset(skip).limit(limit).all()
     return employees
 
 @app.get("/employees/count")
@@ -150,7 +150,7 @@ def count_employees(db: Session = Depends(get_db)):
     
     Aucune authentification requise.
     """
-    count = db.query(TrainingData).count()
+    count = db.query(Employee).count()
     return {"total": count}
 
 @app.get("/employees/{employee_id}", response_model=EmployeeResponse)
@@ -161,7 +161,7 @@ def get_employee_by_id(employee_id: int, db: Session = Depends(get_db)):
     Aucune authentification requise pour consulter.
     """
     try:
-        employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
+        employee = db.query(Employee).filter(Employee.id == employee_id).first()
         if not employee:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -207,7 +207,7 @@ def predict_from_employee_id(
             )
         
         # 1. Récupérer l'employé
-        employee = db.query(TrainingData).filter(TrainingData.id == employee_id).first()
+        employee = db.query(Employee).filter(Employee.id == employee_id).first()
         if not employee:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -418,12 +418,12 @@ def get_statistics(db: Session = Depends(get_db)):
     
     Aucune authentification requise pour consulter les stats.
     """
-    total_employees = db.query(TrainingData).count()
+    total_employees = db.query(Employee).count()
     total_predictions = db.query(PredictionLog).count()
     
     # Compter les démissions dans les données d'entraînement
-    oui_count = db.query(TrainingData).filter(TrainingData.target == "Oui").count()
-    non_count = db.query(TrainingData).filter(TrainingData.target == "Non").count()
+    oui_count = db.query(Employee).filter(Employee.target == "Oui").count()
+    non_count = db.query(Employee).filter(Employee.target == "Non").count()
     
     # Compter les prédictions
     pred_oui = db.query(PredictionLog).filter(PredictionLog.prediction_result == "Oui").count()

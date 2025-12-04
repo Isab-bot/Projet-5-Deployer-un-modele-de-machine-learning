@@ -1,14 +1,23 @@
-import pickle
 import json
 import pandas as pd
-from sqlalchemy.orm import Session
-from database import SessionLocal
-from models import TrainingData
+import os
 import joblib
+from database import SessionLocal, engine
+from models import Base, Employee
+
+# Supprimer l'ancienne base si elle existe
+DB_PATH = "hr_analytics.db"
+if os.path.exists(DB_PATH):
+    print(f"🗑️  Suppression de l'ancienne base : {DB_PATH}")
+    os.remove(DB_PATH)
+
+# Recréer les tables
+print("📋 Création des tables...")
+Base.metadata.create_all(bind=engine)
 
 print("📂 Chargement du dataset...")
 
-# Charger le fichier pickle
+# Charger le fichier joblib
 with open('01_classe.joblib', 'rb') as f:
     df = joblib.load(f)
 
@@ -18,41 +27,37 @@ print(f"Colonnes : {df.columns.tolist()}")
 # Connexion à la base de données
 db = SessionLocal()
 
-print("\n📥 Importation dans PostgreSQL...")
+print("\n📥 Importation dans la base de données...")
 
-# Compteur pour suivre la progression
 count = 0
 
-for index, row in df.iterrows():
-    # Extraire la target (démission)
-    target_value = str(row['démission']) if pd.notna(row['démission']) else None
+try:
+    for index, row in df.iterrows():
+        target_value = str(row['démission']) if pd.notna(row['démission']) else None
+        features_dict = row.drop('démission').to_dict()
+        features_dict = {k: (None if pd.isna(v) else v) for k, v in features_dict.items()}
+        features_json = json.dumps(features_dict)
+        
+        db_entry = Employee(
+            identifier=f"RECORD_{index}",
+            features=features_json,
+            target=target_value
+        )
+        
+        db.add(db_entry)
+        count += 1
+        
+        if count % 100 == 0:
+            db.commit()
+            print(f"  → {count}/{len(df)} lignes importées...")
     
-    # Créer un dictionnaire avec toutes les features SAUF démission
-    features_dict = row.drop('démission').to_dict()
-    
-    # Convertir les valeurs NaN en None pour JSON
-    features_dict = {k: (None if pd.isna(v) else v) for k, v in features_dict.items()}
-    
-    # Convertir en JSON
-    features_json = json.dumps(features_dict)
-    
-    # Créer l'entrée dans la DB
-    db_entry = TrainingData(
-        identifier=f"RECORD_{index}",  # Identifiant auto-généré
-        features=features_json,
-        target=target_value
-    )
-    
-    db.add(db_entry)
-    count += 1
-    
-    # Commit par batch de 100 pour optimiser
-    if count % 100 == 0:
-        db.commit()
-        print(f"  → {count}/{len(df)} lignes importées...")
+    db.commit()
+    print(f"\n✅ {count} lignes ajoutées à la table 'employees'")
 
-# Commit final
-db.commit()
-db.close()
+except Exception as e:
+    db.rollback()
+    print(f"❌ Erreur : {e}")
+    raise
 
-print(f"\n✅ Importation terminée ! {count} lignes ajoutées à la table 'training_data'")
+finally:
+    db.close()

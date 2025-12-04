@@ -8,7 +8,7 @@ et l'intégrité des données fonctionnent correctement.
 import pytest
 import json
 from datetime import datetime
-from models import TrainingData, PredictionLog
+from models import Employee, PredictionLog
 
 
 # =============================================================================
@@ -42,7 +42,7 @@ def test_create_employee(db_session):
     }
     
     # Act : Créer l'employé
-    employee = TrainingData(
+    employee = Employee(
         features=json.dumps(employee_features),
         target="Non"
     )
@@ -117,7 +117,7 @@ def test_employee_has_logs(db_session):
     - On peut récupérer tous les logs d'un employé
     """
     # Arrange : Créer un employé
-    employee = TrainingData(
+    employee = Employee(
         features='{"age": 40}',
         target="Non"
     )
@@ -201,7 +201,7 @@ def test_retrieve_employee_by_id(db_session):
     """
     # Arrange : Créer un employé
     original_features = '{"age": 45, "genre": "M", "departement": "IT"}'
-    employee = TrainingData(
+    employee = Employee(
         features=original_features,
         target="Non"
     )
@@ -211,8 +211,8 @@ def test_retrieve_employee_by_id(db_session):
     employee_id = employee.id
     
     # Act : Récupérer l'employé par ID
-    retrieved = db_session.query(TrainingData)\
-        .filter(TrainingData.id == employee_id)\
+    retrieved = db_session.query(Employee)\
+        .filter(Employee.id == employee_id)\
         .first()
     
     # Assert : Vérifier
@@ -241,8 +241,8 @@ def test_get_all_logs_for_employee(db_session):
     - L'ordre peut être contrôlé (par date)
     """
     # Arrange : Créer 2 employés
-    emp1 = TrainingData(features='{"age": 30}', target="Non")
-    emp2 = TrainingData(features='{"age": 40}', target="Oui")
+    emp1 = Employee(features='{"age": 30}', target="Non")
+    emp2 = Employee(features='{"age": 40}', target="Oui")
     db_session.add_all([emp1, emp2])
     db_session.commit()
     

@@ -86,7 +86,9 @@ class ModelLoader:
             
             return {
                 'prediction': prediction,
-                'confidence_score': float(confidence)
+                'probability': float(proba),
+                'confidence_score': float(confidence),
+                'threshold_used': self.optimal_threshold
             }
             
         except Exception as e:

@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from database import Base, get_db
 from main import app
 from model_loader import model_loader
-from models import TrainingData, PredictionLog
+from models import Employee, PredictionLog
 
 # =============================================================================
 # CONFIGURATION DE LA BASE DE DONNÉES DE TEST

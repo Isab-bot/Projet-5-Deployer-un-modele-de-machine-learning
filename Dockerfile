@@ -28,9 +28,6 @@ RUN python import_data.py
 # Exposer le port 7860 (standard Hugging Face)
 EXPOSE 7860
 
-# Variables d'environnement par défaut (seront écrasées par les secrets HF)
-ENV DATABASE_URL=sqlite:///./hr_analytics.db
-ENV API_KEY=changeme
 
 # Commande de démarrage
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]

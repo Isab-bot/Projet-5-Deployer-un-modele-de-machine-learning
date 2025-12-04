@@ -1,5 +1,5 @@
 from database import engine, Base
-from models import TrainingData, PredictionLog
+from models import Employee, PredictionLog
 
 print("Création des tables...")
 Base.metadata.create_all(bind=engine)

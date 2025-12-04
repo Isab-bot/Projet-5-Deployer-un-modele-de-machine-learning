@@ -6,7 +6,7 @@ sur un jeu de test, conformément aux exigences métier.
 """
 
 import pytest
-import pickle
+import joblib
 import pandas as pd
 import numpy as np
 import time
@@ -45,8 +45,8 @@ def test_dataset():
     print("\n📂 Chargement du dataset...")
     
     # Charger le dataset complet
-    with open('01_classe.pkl', 'rb') as f:
-        df = pickle.load(f)
+    with open('01_classe.joblib', 'rb') as f:
+        df = joblib.load(f)
     
     print(f"   ✅ Dataset chargé : {len(df)} lignes")
     
