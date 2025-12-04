@@ -18,7 +18,8 @@ RUN mkdir -p models
 
 # Entraîner le modèle au build (si nécessaire)
 # Ou copier un modèle pré-entraîné
-RUN python train_final_model.py
+# Le modèle pré-entraîné est déjà copié avec COPY . .
+# RUN python train_final_model.py
 
 # Exposer le port 7860 (standard Hugging Face)
 EXPOSE 7860

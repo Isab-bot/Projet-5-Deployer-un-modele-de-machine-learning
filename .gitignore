@@ -41,3 +41,4 @@ wheels/
 Thumbs.db
 
 *.pkl
+!models/*.pkl
