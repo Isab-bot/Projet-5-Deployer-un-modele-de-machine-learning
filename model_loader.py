@@ -31,7 +31,7 @@ class ModelLoader:
             with open(self.model_path, 'rb') as f:
                 saved_data = pickle.load(f)
             
-            self.pipeline = saved_data['pipeline']
+            self.pipeline = saved_data
             self.config = saved_data['config']
             self.feature_names = saved_data['feature_names']
             self.optimal_threshold = saved_data['optimal_threshold']
