@@ -4,12 +4,13 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import TrainingData
+import joblib
 
 print("📂 Chargement du dataset...")
 
 # Charger le fichier pickle
-with open('01_classe.pkl', 'rb') as f:
-    df = pickle.load(f)
+with open('01_classe.joblib', 'rb') as f:
+    df = joblib.load(f)
 
 print(f"✅ Dataset chargé : {len(df)} lignes, {len(df.columns)} colonnes")
 print(f"Colonnes : {df.columns.tolist()}")

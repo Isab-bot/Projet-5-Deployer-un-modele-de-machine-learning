@@ -1,40 +1,48 @@
-import json
+"""
+Chargement du modèle XGBoost
+Compatible avec la structure : {'pipeline', 'config', 'feature_names', 'optimal_threshold'}
+Utilise joblib au lieu de pickle
+"""
+
+import joblib  # ← CHANGEMENT
 from typing import Dict, Any
 import numpy as np
 import pandas as pd
 import logging
 from pathlib import Path
-import pickle
 import os
 
 logger = logging.getLogger(__name__)
 
 class ModelLoader:
-    def __init__(self, model_path: str = "models/xgboost_pipeline.pkl"):
+    def __init__(self, model_path: str = "models/xgboost_pipeline.joblib"):  # ← CHANGEMENT
         self.model_path = Path(model_path)
         self.pipeline = None
-        self.optimal_threshold = 0.5  # Seuil par défaut
+        self.config = None
+        self.feature_names = None
+        self.optimal_threshold = None
         
     def load_model(self):
-        """Charge le modèle avec gestion d'erreurs."""
+        """Charge le modèle avec joblib."""
         try:
-            # Vérifier que le fichier existe
             if not self.model_path.exists():
                 raise FileNotFoundError(
                     f"❌ Modèle non trouvé : {self.model_path}\n"
                     f"💡 Assurez-vous d'avoir exécuté 'python train_final_model.py'"
                 )
             
-            # Charger le modèle
             logger.info(f"📥 Chargement du modèle depuis {self.model_path}...")
             
-            with open(self.model_path, 'rb') as f:
-                self.pipeline = pickle.load(f)
+            # Charger avec joblib
+            saved_data = joblib.load(self.model_path)  # ← CHANGEMENT
             
-            # Le fichier contient juste le pipeline (modèle dummy)
-            # Pas de config, pas de feature_names
+            # Extraire les composants
+            self.pipeline = saved_data['pipeline']
+            self.config = saved_data['config']
+            self.feature_names = saved_data['feature_names']
+            self.optimal_threshold = saved_data['optimal_threshold']
             
-            logger.info("✅ Modèle chargé avec succès")
+            logger.info(f"✅ Modèle chargé : {len(self.feature_names)} features")
             logger.info(f"📊 Seuil optimal : {self.optimal_threshold}")
             
         except FileNotFoundError as e:
@@ -51,12 +59,6 @@ class ModelLoader:
     def predict(self, features: Dict[str, Any]) -> Dict[str, Any]:
         """
         Faire une prédiction à partir d'un dictionnaire de features
-        
-        Args:
-            features: Dictionnaire avec les valeurs des features
-            
-        Returns:
-            Dictionnaire avec prediction, probability, confidence
         """
         if self.pipeline is None:
             raise RuntimeError("Modèle non chargé. Appelez load_model() d'abord.")
@@ -64,29 +66,17 @@ class ModelLoader:
         # Convertir en DataFrame (1 ligne)
         df = pd.DataFrame([features])
         
-        # Le modèle dummy accepte n'importe quelles features
-        # On prend juste les valeurs numériques
-        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        # S'assurer que toutes les features sont présentes
+        for feature in self.feature_names:
+            if feature not in df.columns:
+                df[feature] = None  # Valeur manquante
         
-        if len(numeric_cols) == 0:
-            # Si aucune colonne numérique, créer des valeurs par défaut
-            df_numeric = pd.DataFrame(np.random.rand(1, 20))
-        else:
-            # Prendre les colonnes numériques
-            df_numeric = df[numeric_cols]
-            
-            # Si moins de 20 colonnes, compléter avec des 0
-            if df_numeric.shape[1] < 20:
-                missing_cols = 20 - df_numeric.shape[1]
-                for i in range(missing_cols):
-                    df_numeric[f'feature_{i}'] = 0
-        
-        # Ne garder que 20 colonnes (le modèle dummy en attend 20)
-        df_numeric = df_numeric.iloc[:, :20]
+        # Garder seulement les features du modèle (dans le bon ordre)
+        df = df[self.feature_names]
         
         try:
             # Prédiction (probabilité)
-            proba = self.pipeline.predict_proba(df_numeric)[0, 1]
+            proba = self.pipeline.predict_proba(df)[0, 1]
             
             # Prédiction (classe) avec seuil optimal
             prediction = "Oui" if proba >= self.optimal_threshold else "Non"
@@ -101,11 +91,7 @@ class ModelLoader:
             
         except Exception as e:
             logger.error(f"❌ Erreur lors de la prédiction : {e}")
-            # Retourner une prédiction par défaut
-            return {
-                'prediction': 'Non',
-                'confidence_score': 0.5
-            }
+            raise
 
 # Instance globale
 model_loader = ModelLoader()

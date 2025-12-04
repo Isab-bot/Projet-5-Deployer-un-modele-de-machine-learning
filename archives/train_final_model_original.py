@@ -1,5 +1,6 @@
-import joblib  # ← CHANGEMENT (au lieu de pickle)
+import pickle
 import json
+import joblib
 import pandas as pd
 import numpy as np
 from sklearn.compose import ColumnTransformer
@@ -17,8 +18,8 @@ print("="*80)
 # =============================================================================
 
 print("\n📂 Chargement du dataset...")
-with open('01_classe.joblib', 'rb') as f:  # ← CHANGEMENT
-    df = joblib.load(f)  # ← CHANGEMENT
+with open('01_classe.pkl', 'rb') as f:
+    df = pickle.load(f)
 
 print(f"✅ Dataset chargé : {len(df)} lignes, {len(df.columns)} colonnes")
 
@@ -185,17 +186,19 @@ saved_data = {
         'version': '1.0.0',
         'scale_pos_weight': scale_pos_weight,
         'n_estimators': 100,
-        'max_depth': 3,
-        'learning_rate': 0.05
+        'max_depth': 6,
+        'learning_rate': 0.1
     },
     'feature_names': feature_names,
     'optimal_threshold': 0.09
 }
 
-# Sauvegarder avec joblib (au lieu de pickle)
-joblib.dump(saved_data, 'models/xgboost_pipeline.joblib')  # ← CHANGEMENT
+# Sauvegarder dans UN SEUL fichier
+import pickle
+with open('models/xgboost_pipeline.pkl', 'wb') as f:
+    pickle.dump(saved_data, f)
 
-print("✅ Modèle sauvegardé dans models/xgboost_pipeline.joblib")
+print("✅ Modèle sauvegardé dans models/xgboost_pipeline.pkl")
 
 # =============================================================================
 # 10. RÉCAPITULATIF
@@ -204,6 +207,10 @@ print("✅ Modèle sauvegardé dans models/xgboost_pipeline.joblib")
 print("\n" + "="*80)
 print("✅ ENTRAÎNEMENT TERMINÉ")
 print("="*80)
-print("\n📁 Fichier créé :")
-print("   • models/xgboost_pipeline.joblib (Pipeline complet + config)")
+print("\n📁 Fichiers créés :")
+print("   • xgboost_model.pkl      (Pipeline complet)")
+print("   • preprocessor.pkl       (OneHotEncoder)")
+print("   • feature_names.pkl      (Liste des 29 features)")
+print("   • model_config.json      (Configuration et métadonnées)")
+print("\n🎯 Prochaine étape : Intégrer le modèle dans l'API FastAPI")
 print("="*80)
