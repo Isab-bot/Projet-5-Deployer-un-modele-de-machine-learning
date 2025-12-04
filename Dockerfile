@@ -16,18 +16,21 @@ COPY . .
 # Créer le dossier models s'il n'existe pas
 RUN mkdir -p models
 
-# Entraîner le modèle au build (si nécessaire)
-# Ou copier un modèle pré-entraîné
+# Entraîner le modèle
 RUN python train_final_model.py
+
+# Créer les tables de la base de données
+RUN python create_tables.py
+
+# Importer les données dans la base
+RUN python import_data.py
 
 # Exposer le port 7860 (standard Hugging Face)
 EXPOSE 7860
 
-# Variables d'environnement par défaut
+# Variables d'environnement par défaut (seront écrasées par les secrets HF)
 ENV DATABASE_URL=sqlite:///./hr_analytics.db
 ENV API_KEY=changeme
 
 # Commande de démarrage
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
-
-
