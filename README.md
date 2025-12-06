@@ -1,4 +1,4 @@
- ---
+---
 title: API Prédiction Démission
 emoji: 🤖
 colorFrom: blue
@@ -9,9 +9,26 @@ app_port: 7860
 
 # 🎯 API de Prédiction de Démission - Projet 5
 
-![CI Tests](https://github.com/Isab-bot/Projet-5-Deployer-un-modele-de-machine-learning/actions/workflows/ci.yml/badge.svg)
+[![CI Tests](https://github.com/Isab-bot/Projet-5-Deployer-un-modele-de-machine-learning/actions/workflows/ci.yml/badge.svg)](https://github.com/Isab-bot/Projet-5-Deployer-un-modele-de-machine-learning/actions/workflows/ci.yml)
+[![Hugging Face](https://img.shields.io/badge/🤗%20Hugging%20Face-Space-yellow)](https://huggingface.co/spaces/Fox6768/API_demission_prediction)
 
 API REST pour prédire les démissions d'employés à l'aide d'un modèle XGBoost.
+
+---
+
+## 🚀 API Déployée
+
+**🌐 URL Production :** https://Fox6768-api-demission-prediction.hf.space
+
+**📖 Documentation Interactive :** https://Fox6768-api-demission-prediction.hf.space/docs
+
+### ⚡ Endpoints Rapides
+- **Health Check :** [/health](https://Fox6768-api-demission-prediction.hf.space/health)
+- **Swagger UI :** [/docs](https://Fox6768-api-demission-prediction.hf.space/docs)
+- **ReDoc :** [/redoc](https://Fox6768-api-demission-prediction.hf.space/redoc)
+
+### 🔑 Obtenir l'API Key
+Contactez l'administrateur pour obtenir votre clé d'authentification.
 
 ---
 
@@ -37,7 +54,7 @@ X-API-Key: votre-cle-api
 
 **Exemple avec curl :**
 ```bash
-curl -X POST https://votre-space.hf.space/predict/from_id/1 \
+curl -X POST https://Fox6768-api-demission-prediction.hf.space/predict/from_id/1 \
   -H "X-API-Key: votre-cle-api"
 ```
 
@@ -68,7 +85,7 @@ curl -X POST https://votre-space.hf.space/predict/from_id/1 \
 
 ### **Exemple 1 : Prédiction depuis un ID**
 ```bash
-curl -X POST "https://votre-space.hf.space/predict/from_id/1" \
+curl -X POST "https://Fox6768-api-demission-prediction.hf.space/predict/from_id/1" \
   -H "X-API-Key: votre-cle-api"
 ```
 
@@ -86,7 +103,7 @@ curl -X POST "https://votre-space.hf.space/predict/from_id/1" \
 
 ### **Exemple 2 : Prédiction pour un nouvel employé**
 ```bash
-curl -X POST "https://votre-space.hf.space/predict/new_employee" \
+curl -X POST "https://Fox6768-api-demission-prediction.hf.space/predict/new_employee" \
   -H "X-API-Key: votre-cle-api" \
   -H "Content-Type: application/json" \
   -d '{
@@ -186,6 +203,17 @@ docker run -p 7860:7860 -e API_KEY=votre-cle api-demission
 - `DATABASE_URL` : Chemin de la base de données (défaut : `sqlite:///./hr_analytics.db`)
 - `API_KEY` : Clé d'authentification (à configurer dans les secrets)
 
+### **☁️ Déploiement Automatique**
+
+Chaque push sur `main` déclenche :
+1. ✅ Tests CI/CD (GitHub Actions)
+2. 🚀 Build automatique sur Hugging Face
+3. 📊 Génération des données et entraînement du modèle
+4. 🌐 Déploiement en production
+
+**Les données sont générées AUTOMATIQUEMENT au build** depuis `01_classe.joblib`.
+Aucun fichier CSV n'est inclus dans le repository pour des raisons de confidentialité.
+
 ---
 
 ## 📚 Documentation
@@ -212,4 +240,5 @@ Ce projet est développé dans le cadre d'une formation.
 
 - [GitHub Repository](https://github.com/Isab-bot/Projet-5-Deployer-un-modele-de-machine-learning)
 - [CI/CD Pipeline](https://github.com/Isab-bot/Projet-5-Deployer-un-modele-de-machine-learning/actions)
-- [Hugging Face Space](https://huggingface.co/spaces/Isab-bot/api-demission)
+- [Hugging Face Space (Production)](https://huggingface.co/spaces/Fox6768/API_demission_prediction)
+- [API Déployée](https://Fox6768-api-demission-prediction.hf.space)
