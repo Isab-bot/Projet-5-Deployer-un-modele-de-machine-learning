@@ -18,6 +18,58 @@ from models import Employee, PredictionLog
 
 pytestmark = pytest.mark.functional
 
+def test_root(client):
+    """Test de l'endpoint racine"""
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.json()
+    assert "message" in data
+
+
+def test_health_check(client):
+    """Test du health check"""
+    response = client.get("/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+
+
+
+def test_count_employees(client, setup_test_data):
+    """Test comptage employés"""
+    response = client.get("/employees/count")
+    assert response.status_code == 200
+    data = response.json()
+    assert "total" in data
+    assert data["total"] >= 1
+
+
+
+def test_get_prediction_logs(client):
+    """Test récupération logs de prédictions"""
+    response = client.get("/predictions/logs?limit=10")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+
+def test_predict_from_id_not_found(client):
+    """Test prédiction avec ID inexistant"""
+    response = client.post("/predict/from_id/99999")
+    assert response.status_code == 404
+
+
+def test_predict_new_employee_invalid_data(client):
+    """Test prédiction avec données invalides"""
+    response = client.post("/predict/new_employee", json={"features": "invalid"})
+    assert response.status_code == 422
+
+
+def test_get_prediction_log_not_found(client):
+    """Test récupération log inexistant"""
+    response = client.get("/predict/log/99999")
+    assert response.status_code == 404
+
+
 
 # =============================================================================
 # SETUP : Ajouter des données de test dans la DB
@@ -434,9 +486,73 @@ def test_predict_new_employee_success(client, valid_employee_data):
     # Vérifier la structure
     assert 'log_id' in data
     assert 'employee_id' in data
-    assert 'prediction' in data  # ← Changé de 'prediction' à 'prediction'
+    assert 'prediction' in data  
     assert 'confidence_score' in data
     
     # employee_id doit être null (nouvel employé)
     assert data['employee_id'] is None
-    assert data['prediction'] in ['Oui', 'Non']  # ← Changé aussi ici
+    assert data['prediction'] in ['Oui', 'Non']  
+
+def test_api_docs_accessible(client):
+    """Test que la documentation Swagger est accessible"""
+    response = client.get("/docs")
+    assert response.status_code == 200
+
+
+def test_api_redoc_accessible(client):
+    """Test que ReDoc est accessible"""
+    response = client.get("/redoc")
+    assert response.status_code == 200
+
+
+def test_openapi_json(client):
+    """Test que le schéma OpenAPI est accessible"""
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    data = response.json()
+    assert "openapi" in data
+    assert "info" in data
+
+#=============================================================================
+# TESTS D'AUTHENTIFICATION
+# =============================================================================
+
+
+
+def test_predict_from_id_with_valid_api_key(client, setup_test_data):
+    """Test prédiction avec bonne API Key"""
+    response = client.post(
+        "/predict/from_id/1",
+        headers={"X-API-Key": "test-api-key-12345"}
+    )
+    assert response.status_code == 200
+
+
+# =============================================================================
+# TESTS ENDPOINTS PROTÉGÉS
+# =============================================================================
+
+
+
+
+def test_get_employee_by_id_not_found(client):
+    """Test GET /employees/{id} avec ID inexistant"""
+    response = client.get(
+        "/employees/99999",
+        headers={"X-API-Key": "test-api-key-12345"}
+    )
+    assert response.status_code == 404
+
+
+
+def test_get_statistics_with_auth(client, setup_test_data):
+    """Test GET /stats avec authentification"""
+    response = client.get(
+        "/stats",
+        headers={"X-API-Key": "test-api-key-12345"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "employees" in data
+    assert "predictions" in data
+    assert "model" in data    

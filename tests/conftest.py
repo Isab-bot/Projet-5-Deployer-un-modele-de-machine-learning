@@ -8,6 +8,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 import os
 
+os.environ["API_KEY"] = "test-api-key-12345"
+
 # Ajouter le dossier parent au path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
