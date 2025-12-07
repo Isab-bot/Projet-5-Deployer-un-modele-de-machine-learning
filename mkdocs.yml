@@ -1,0 +1,196 @@
+site_name: API Prédiction Démission - Documentation
+site_description: Documentation complète du système de prédiction de démissions d'employés
+site_author: I.R. - Formation IA Engineer
+site_url: https://isab-bot.github.io/Projet-5-Deployer-un-modele-de-machine-learning/
+
+# Repository GitHub
+repo_name: Isab-bot/Projet-5-Deployer-un-modele-de-machine-learning
+repo_url: https://github.com/Isab-bot/Projet-5-Deployer-un-modele-de-machine-learning
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2024 I.R. - Projet 5 Formation IA Engineer
+
+# Configuration du thème Material
+theme:
+  name: material
+  language: fr
+  
+  # Palette de couleurs
+  palette:
+    # Mode clair
+    - scheme: default
+      primary: blue
+      accent: green
+      toggle:
+        icon: material/brightness-7
+        name: Passer en mode sombre
+    
+    # Mode sombre
+    - scheme: slate
+      primary: blue
+      accent: green
+      toggle:
+        icon: material/brightness-4
+        name: Passer en mode clair
+  
+  # Fonctionnalités
+  features:
+    - navigation.instant       # Navigation rapide sans rechargement
+    - navigation.tracking      # Mise à jour URL selon scroll
+    - navigation.tabs          # Onglets principaux en haut
+    - navigation.sections      # Sections dans la sidebar
+    - navigation.expand        # Expansion automatique des sections
+    - navigation.top           # Bouton "retour en haut"
+    - search.suggest           # Suggestions de recherche
+    - search.highlight         # Surlignage des résultats
+    - search.share             # Partage de recherche
+    - toc.integrate            # Table des matières intégrée
+    - content.code.copy        # Bouton copier pour code
+    - content.code.annotate    # Annotations dans le code
+  
+  # Icônes
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/robot
+  
+  # Favicon
+  favicon: assets/favicon.png
+
+# Navigation principale
+nav:
+  - Accueil: index.md
+  
+  - Guide de Démarrage:
+      - Vue d'ensemble: getting-started/overview.md
+      - Installation Locale: getting-started/installation.md
+      - Premier Test: getting-started/quickstart.md
+  
+  - Guide Utilisateur:
+      - Utilisation de l'API: user-guide/api-usage.md
+      - Exemples Pratiques: user-guide/examples.md
+      - Authentification: user-guide/authentication.md
+      - Gestion des Erreurs: user-guide/errors.md
+  
+  - Documentation Technique:
+      - Architecture du Système: technical/architecture.md
+      - Modèle Machine Learning: technical/model.md
+      - Justifications Techniques: technical/justifications.md
+      - Base de Données: technical/database.md
+  
+  - Maintenance & Opérations:
+      - Guide de Maintenance: operations/maintenance.md
+      - Monitoring: operations/monitoring.md
+      - Réentraînement: operations/retraining.md
+      - Rollback: operations/rollback.md
+  
+  - Référence API:
+      - Endpoints: api/endpoints.md
+      - Schémas de Données: api/schemas.md
+      - Swagger UI: api/swagger.md
+  
+  - Standards & Bonnes Pratiques:
+      - Standards du Projet: standards/project-standards.md
+      - Convention de Code: standards/code-conventions.md
+      - Tests: standards/testing.md
+  
+  - À Propos:
+      - Projet: about/project.md
+      - Contact: about/contact.md
+      - Licence: about/license.md
+
+# Extensions Markdown
+markdown_extensions:
+  # Syntaxe de base
+  - abbr                        # Abréviations
+  - admonition                  # Notes, warnings, tips
+  - attr_list                   # Attributs HTML
+  - def_list                    # Listes de définitions
+  - footnotes                   # Notes de bas de page
+  - meta                        # Métadonnées
+  - md_in_html                  # Markdown dans HTML
+  
+  # Table des matières
+  - toc:
+      permalink: true           # Ancres permanentes
+      permalink_title: Lien permanent
+      toc_depth: 3
+  
+  # Tables
+  - tables
+  
+  # Pymdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret              # Insertion/surlignage
+  - pymdownx.mark               # Marquage
+  - pymdownx.tilde              # Barré
+  - pymdownx.critic             # Track changes
+  - pymdownx.details            # Détails pliables
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  
+  # Highlighting de code
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite       # Code inline
+  - pymdownx.snippets           # Inclusion de fichiers
+  - pymdownx.superfences:       # Code blocks avancés
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  
+  # Listes de tâches
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  
+  # Onglets
+  - pymdownx.tabbed:
+      alternate_style: true
+  
+  # Clés
+  - pymdownx.keys
+
+# Plugins
+plugins:
+  - search:
+      lang: fr
+      separator: '[\s\-\.]+'
+  - minify:
+      minify_html: true
+
+# Extra CSS/JS
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/extra.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+# Configuration extra
+extra:
+  # Réseaux sociaux
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Isab-bot/Projet-5-Deployer-un-modele-de-machine-learning
+      name: GitHub Repository
+    
+    - icon: fontawesome/solid/globe
+      link: https://Fox6768-api-demission-prediction.hf.space
+      name: API en Production
+  
+  # Analytics (optionnel)
+  # analytics:
+  #   provider: google
+  #   property: G-XXXXXXXXXX
+  
+  # Version
+  version:
+    provider: mike
+    default: latest
