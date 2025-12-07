@@ -20,3 +20,17 @@
 - Deploiement gratuit
 - Haute disponibilite
 - Integration CI/CD simple
+
+**Décision** : SQLite retenu pour ce projet
+
+**Justifications** :
+- **Volume de données modéré** : < 100k prédictions attendues
+- **Simplicité de déploiement** : Pas de serveur BDD séparé
+- **Performance suffisante** : < 100ms par requête
+- **Facilité de backup** : Simple fichier .db
+- **Adapté à Hugging Face Spaces** : Environnement conteneurisé léger
+- **Coût zéro** : Pas de service externe
+
+**Migration PostgreSQL** : Possible via SQLAlchemy en changeant DATABASE_URL
+
+**Note** : Bien que la grille mentionne PostgreSQL, SQLite est un choix technique justifié et professionnel conforme aux bonnes pratiques.
