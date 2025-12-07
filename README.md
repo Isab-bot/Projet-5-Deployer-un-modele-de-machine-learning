@@ -20,7 +20,7 @@ Système de prédiction de démissions d'employés utilisant un modèle XGBoost 
 
 **Documentation Interactive (Swagger) :** [https://Fox6768-api-demission-prediction.hf.space/docs](https://Fox6768-api-demission-prediction.hf.space/docs)
 
-**Documentation Complète :** [Lien vers GitHub Pages] *(à ajouter après déploiement)*
+**Documentation Complète :** [https://isab-bot.github.io/Projet-5-Deployer-un-modele-de-machine-learning/](https://isab-bot.github.io/Projet-5-Deployer-un-modele-de-machine-learning/)
 
 ---
 
