@@ -19,7 +19,7 @@
 3. **Surveiller l'utilisation**
 ```bash
    # Nombre de predictions aujourd'hui
-   sqlite3 hr_analytics.db "SELECT COUNT(*) FROM predictions WHERE DATE(timestamp) = DATE('now')"
+sqlite3 hr_analytics.db "SELECT COUNT(*) FROM predictions_logs WHERE DATE(created_at) = DATE('now')"
 ```
 
 4. **Verifier l'espace disque**
@@ -45,7 +45,7 @@
 sqlite3 hr_analytics.db <<EOF
 .mode csv
 .output predictions_$(date +%Y%m).csv
-SELECT * FROM predictions WHERE timestamp >= datetime('now', '-1 month');
+SELECT * FROM predictions_logs WHERE created_at >= datetime('now', '-1 month');
 EOF
 ```
 

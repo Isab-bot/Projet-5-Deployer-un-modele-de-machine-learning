@@ -1,64 +1,175 @@
-# Base de Donnees
+# Base de Données
 
-## Schema SQLite
+## Architecture SQLite
 
-### Table : predictions
+Le projet utilise SQLite avec 2 tables principales :
+- `employees` : Données d'entraînement (2363 employés historiques)
+- `predictions_logs` : Historique des prédictions effectuées par l'API
 
-| Colonne | Type | Description |
-|---------|------|-------------|
-| id | INTEGER | Cle primaire auto-incrementee |
-| employee_data | JSON | Donnees employe (format JSON) |
-| prediction | INTEGER | Prediction (0 = Reste, 1 = Demission) |
-| probability | FLOAT | Probabilite de demission (0.0 - 1.0) |
-| timestamp | DATETIME | Date et heure de la prediction |
+---
 
-### Structure Complete
+## Table 1 : employees
+
+Table contenant les données d'entraînement du modèle (employés historiques).
+
+### Structure
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| id | INTEGER | PRIMARY KEY, AUTO_INCREMENT | Identifiant unique |
+| identifier | VARCHAR | UNIQUE, INDEX | Identifiant métier (ex: RECORD_0) |
+| features | TEXT (JSON) | NOT NULL | Caractéristiques employé en JSON |
+| target | VARCHAR | NULLABLE | Démission réelle : "Oui" ou "Non" |
+| created_at | DATETIME | DEFAULT NOW | Date de création |
+
+### Schéma SQL
 ```sql
-CREATE TABLE predictions (
+CREATE TABLE employees (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    employee_data TEXT NOT NULL,
-    prediction INTEGER NOT NULL,
-    probability REAL NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    identifier VARCHAR UNIQUE NOT NULL,
+    features TEXT NOT NULL,
+    target VARCHAR,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_employees_identifier ON employees(identifier);
+```
+
+### Exemple de données
+```json
+{
+    "id": 1,
+    "identifier": "RECORD_0",
+    "features": {
+        "satisfaction_level": 0.38,
+        "last_evaluation": 0.53,
+        "number_project": 2,
+        "average_montly_hours": 157,
+        "time_spend_company": 3,
+        "Work_accident": 0,
+        "promotion_last_5years": 0,
+        "departement": "sales",
+        "salary": "low"
+    },
+    "target": "Oui",
+    "created_at": "2025-12-07T10:30:00"
+}
 ```
 
 ---
 
-## Requetes Communes
+## Table 2 : predictions_logs
 
-### Historique complet
+Table loggant toutes les prédictions effectuées par l'API pour traçabilité.
+
+### Structure
+
+| Colonne | Type | Contraintes | Description |
+|---------|------|-------------|-------------|
+| id | INTEGER | PRIMARY KEY, AUTO_INCREMENT | Identifiant unique du log |
+| employee_id | INTEGER | FOREIGN KEY, NULLABLE | Lien vers employé existant (si applicable) |
+| input_features | TEXT (JSON) | NOT NULL | Features utilisées pour prédiction |
+| prediction_result | VARCHAR | NOT NULL | Résultat : "Oui" ou "Non" |
+| confidence_score | FLOAT | NULLABLE | Score de confiance (0.0 - 1.0) |
+| model_version | VARCHAR | DEFAULT "v1.0" | Version du modèle ML utilisé |
+| created_at | DATETIME | DEFAULT NOW | Timestamp de la prédiction |
+
+### Schéma SQL
 ```sql
-SELECT * FROM predictions 
-ORDER BY timestamp DESC;
+CREATE TABLE predictions_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_id INTEGER,
+    input_features TEXT NOT NULL,
+    prediction_result VARCHAR NOT NULL,
+    confidence_score REAL,
+    model_version VARCHAR DEFAULT 'v1.0',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (employee_id) REFERENCES employees(id)
+);
+
+CREATE INDEX idx_predictions_employee_id ON predictions_logs(employee_id);
+CREATE INDEX idx_predictions_created_at ON predictions_logs(created_at);
 ```
 
-### Predictions des 7 derniers jours
+### Exemple de log
+```json
+{
+    "id": 42,
+    "employee_id": 1,
+    "input_features": {
+        "satisfaction_level": 0.38,
+        "departement": "sales",
+        ...
+    },
+    "prediction_result": "Oui",
+    "confidence_score": 0.87,
+    "model_version": "v1.0",
+    "created_at": "2025-12-07T14:23:15"
+}
+```
+
+---
+
+## Relations
+```
+employees (1) ←------ (0..N) predictions_logs
+     ↑                           ↓
+     └─── employee_id (FK) ──────┘
+```
+
+**Relation :**
+- Un employé peut avoir zéro ou plusieurs prédictions loggées
+- Une prédiction peut (optionnellement) référencer un employé existant
+- `employee_id` nullable permet de logger aussi les prédictions pour nouveaux employés
+
+---
+
+## Requêtes Communes
+
+### Historique complet des prédictions
 ```sql
-SELECT * FROM predictions 
-WHERE timestamp >= datetime('now', '-7 days')
-ORDER BY timestamp DESC;
+SELECT * FROM predictions_logs 
+ORDER BY created_at DESC;
+```
+
+### Prédictions des 7 derniers jours
+```sql
+SELECT * FROM predictions_logs 
+WHERE created_at >= datetime('now', '-7 days')
+ORDER BY created_at DESC;
 ```
 
 ### Statistiques globales
 ```sql
 SELECT 
   COUNT(*) as total_predictions,
-  SUM(CASE WHEN prediction = 1 THEN 1 ELSE 0 END) as high_risk_count,
-  AVG(probability) as avg_probability
-FROM predictions;
+  SUM(CASE WHEN prediction_result = 'Oui' THEN 1 ELSE 0 END) as high_risk_count,
+  AVG(confidence_score) as avg_confidence
+FROM predictions_logs;
 ```
 
-### Statistiques par departement
+### Statistiques par département
 ```sql
 SELECT 
-  json_extract(employee_data, '$.departement') as departement,
+  json_extract(input_features, '$.departement') as departement,
   COUNT(*) as total,
-  SUM(prediction) as demissions_predites,
-  AVG(probability) as probabilite_moyenne
-FROM predictions
+  SUM(CASE WHEN prediction_result = 'Oui' THEN 1 ELSE 0 END) as demissions_predites,
+  AVG(confidence_score) as confiance_moyenne
+FROM predictions_logs
 GROUP BY departement
 ORDER BY demissions_predites DESC;
+```
+
+### Prédictions pour un employé spécifique
+```sql
+SELECT 
+  p.*,
+  e.identifier,
+  e.target as demission_reelle
+FROM predictions_logs p
+LEFT JOIN employees e ON p.employee_id = e.id
+WHERE p.employee_id = 1
+ORDER BY p.created_at DESC;
 ```
 
 ---
@@ -81,50 +192,48 @@ cp hr_analytics.db hr_analytics_backup_$(date +%Y%m%d).db
 
 ### Nettoyage
 ```sql
--- Supprimer predictions > 1 an
-DELETE FROM predictions 
-WHERE timestamp < datetime('now', '-1 year');
+-- Supprimer logs > 1 an
+DELETE FROM predictions_logs 
+WHERE created_at < datetime('now', '-1 year');
 
--- Vacuum pour recuperer espace
+-- Vacuum pour récupérer espace
 VACUUM;
 ```
 
 ---
 
-## Acces Programmatique
+## Accès Programmatique
 
-### Python
+### Python (SQLAlchemy)
 ```python
-import sqlite3
+from database import SessionLocal
+from models import Employee, PredictionLog
 import json
-from datetime import datetime
 
-# Connexion
-conn = sqlite3.connect('hr_analytics.db')
-cursor = conn.cursor()
+# Créer une session
+db = SessionLocal()
 
-# Inserer une prediction
-employee_data = {
-    "satisfaction_level": 0.75,
-    "departement": "IT",
-    # ...
-}
+# Récupérer un employé
+employee = db.query(Employee).filter(Employee.id == 1).first()
+print(f"Employé : {employee.identifier}, Target : {employee.target}")
 
-cursor.execute("""
-    INSERT INTO predictions (employee_data, prediction, probability)
-    VALUES (?, ?, ?)
-""", (json.dumps(employee_data), 1, 0.85))
+# Logger une prédiction
+new_log = PredictionLog(
+    employee_id=1,
+    input_features=json.dumps({"satisfaction_level": 0.75, ...}),
+    prediction_result="Oui",
+    confidence_score=0.87,
+    model_version="v1.0"
+)
+db.add(new_log)
+db.commit()
 
-conn.commit()
+# Récupérer l'historique
+logs = db.query(PredictionLog).order_by(PredictionLog.created_at.desc()).limit(10).all()
+for log in logs:
+    print(f"Log {log.id}: {log.prediction_result} (confiance: {log.confidence_score})")
 
-# Recuperer l'historique
-cursor.execute("SELECT * FROM predictions ORDER BY timestamp DESC LIMIT 10")
-results = cursor.fetchall()
-
-for row in results:
-    print(f"ID: {row[0]}, Prediction: {row[2]}, Probabilite: {row[3]}")
-
-conn.close()
+db.close()
 ```
 
 ---
@@ -140,38 +249,40 @@ du -h hr_analytics.db
 (Get-Item hr_analytics.db).Length / 1MB
 ```
 
-### Nombre d'entrees
-```sql
-SELECT COUNT(*) FROM predictions;
-```
-
-### Croissance journaliere
+### Nombre d'entrées
 ```sql
 SELECT 
-  DATE(timestamp) as date,
+  (SELECT COUNT(*) FROM employees) as total_employees,
+  (SELECT COUNT(*) FROM predictions_logs) as total_predictions;
+```
+
+### Croissance journalière
+```sql
+SELECT 
+  DATE(created_at) as date,
   COUNT(*) as predictions_count
-FROM predictions
-WHERE timestamp >= datetime('now', '-30 days')
-GROUP BY DATE(timestamp)
+FROM predictions_logs
+WHERE created_at >= datetime('now', '-30 days')
+GROUP BY DATE(created_at)
 ORDER BY date DESC;
 ```
 
 ---
 
-## Securite
+## Sécurité
 
 ### Permissions
 ```bash
-# Restreindre acces (Linux/Mac)
+# Restreindre accès (Linux/Mac)
 chmod 600 hr_analytics.db
 
-# Proprietaire uniquement
+# Propriétaire uniquement
 chown api_user:api_group hr_analytics.db
 ```
 
-### Sauvegarde Chiffree
+### Sauvegarde Chiffrée
 ```bash
-# Backup chiffre avec OpenSSL
+# Backup chiffré avec OpenSSL
 sqlite3 hr_analytics.db ".backup hr_analytics_backup.db"
 openssl enc -aes-256-cbc -salt -in hr_analytics_backup.db -out hr_analytics_backup.db.enc
 rm hr_analytics_backup.db
@@ -186,44 +297,54 @@ rm hr_analytics_backup.db
 -- Analyser les statistiques
 ANALYZE;
 
--- Reconstruire index (si necessaire)
+-- Reconstruire index
 REINDEX;
 
 -- Compacter la base
 VACUUM;
 ```
 
-### Verification Integrite
+### Vérification Intégrité
 ```bash
-# Verifier integrite
 sqlite3 hr_analytics.db "PRAGMA integrity_check;"
 ```
 
 ---
 
-## Migration
+## Migration vers PostgreSQL
 
-Si besoin de migrer vers PostgreSQL ou MySQL plus tard :
+Si besoin de migrer plus tard (volume croissant) :
 ```python
-import sqlite3
-import psycopg2
-import json
+from sqlalchemy import create_engine
+from models import Base, Employee, PredictionLog
 
-# SQLite source
-sqlite_conn = sqlite3.connect('hr_analytics.db')
-sqlite_cursor = sqlite_conn.cursor()
+# Source SQLite
+sqlite_engine = create_engine('sqlite:///hr_analytics.db')
 
-# PostgreSQL destination
-pg_conn = psycopg2.connect("dbname=hr_analytics user=postgres")
-pg_cursor = pg_conn.cursor()
+# Destination PostgreSQL
+pg_engine = create_engine('postgresql://user:pass@localhost/hr_analytics')
 
-# Migrer donnees
-sqlite_cursor.execute("SELECT * FROM predictions")
-for row in sqlite_cursor.fetchall():
-    pg_cursor.execute("""
-        INSERT INTO predictions (id, employee_data, prediction, probability, timestamp)
-        VALUES (%s, %s, %s, %s, %s)
-    """, row)
+# Créer tables PostgreSQL
+Base.metadata.create_all(bind=pg_engine)
 
-pg_conn.commit()
+# Migrer données (exemple simplifié)
+from sqlalchemy.orm import sessionmaker
+
+SQLiteSession = sessionmaker(bind=sqlite_engine)
+PgSession = sessionmaker(bind=pg_engine)
+
+sqlite_session = SQLiteSession()
+pg_session = PgSession()
+
+# Migrer employees
+employees = sqlite_session.query(Employee).all()
+for emp in employees:
+    pg_session.merge(emp)
+
+# Migrer predictions_logs
+logs = sqlite_session.query(PredictionLog).all()
+for log in logs:
+    pg_session.merge(log)
+
+pg_session.commit()
 ```
