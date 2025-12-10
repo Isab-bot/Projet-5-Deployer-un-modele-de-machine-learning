@@ -235,17 +235,15 @@ python test_api.py
 ## 🎓 Prochaines Étapes
 
 1. **Explorer la documentation complète :** [Lien](https://isab-bot.github.io/Projet-5-Deployer-un-modele-de-machine-learning/)
-2. **Voir plus d'exemples :** [Guide Utilisateur](user-guide/examples.md)
-3. **Comprendre l'API :** [Référence API](api/endpoints.md)
-4. **Configurer l'authentification :** [Guide Auth](user-guide/authentication.md)
-
+2. **Voir plus d'exemples :** [Guide Utilisateur](../user-guide/examples.md)
+3. **Comprendre l'API :** [Référence API](../api/endpoints.md)
+4. **Configurer l'authentification :** [Guide Auth](../user-guide/authentication.md)
 ---
 
 ## ❓ Besoin d'Aide ?
 
 - **Documentation complète :** https://isab-bot.github.io/Projet-5-Deployer-un-modele-de-machine-learning/
 - **API Swagger :** https://Fox6768-api-demission-prediction.hf.space/docs
-- **Problèmes courants :** [FAQ](operations/troubleshooting.md)
 
 ---
 
