@@ -215,7 +215,7 @@ PORT=8000
 
 ### Configuration du Modele
 
-Pour modifier les hyperparametres du modele, editer \	rain_final_model.py\ :
+Pour modifier les hyperparametres du modele, editer \ train_final_model.py\ :
 
 \\\python
 # Exemple : augmenter le nombre d'arbres
