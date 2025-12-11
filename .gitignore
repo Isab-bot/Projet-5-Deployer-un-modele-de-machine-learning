@@ -48,3 +48,5 @@ archives/
 
 # Pytest cache
 .pytest_cache/
+# MkDocs
+site/
