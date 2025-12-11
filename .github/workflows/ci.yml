@@ -16,6 +16,8 @@ jobs:
     # 1. Récupérer le code
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        lfs: true 
     
     # 2. Installer Python
     - name: Set up Python 3.13
