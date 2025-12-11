@@ -23,22 +23,25 @@ jobs:
       with:
         python-version: '3.13'
     
-    # 3. Installer les dépendances
+    # 3. Installer UV
+    - name: Install UV
+      run: |
+        pip install uv
+    
+    # 4. Installer les dépendances avec UV
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        uv sync
     
-    # 4. Créer le dossier models et le fichier modèle
-    - name: Setup model directory
+    # 5. Vérifier que le modèle existe
+    - name: Check model file
       run: |
-        mkdir -p models
-        python train_final_model.py
+        ls -lh models/xgboost_pipeline.joblib
     
-    # 5. Lancer les tests
+    # 6. Lancer les tests
     - name: Run tests with pytest
       env:
-        API_KEY: ${{ secrets.API_KEY }}
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        API_KEY: test-api-key-for-ci
+        DATABASE_URL: sqlite:///./test_hr_analytics.db
       run: |
-        pytest tests/ -v --tb=short
+        uv run pytest tests/ -v --tb=short
