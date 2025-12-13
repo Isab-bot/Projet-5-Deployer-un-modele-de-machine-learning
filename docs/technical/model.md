@@ -137,7 +137,7 @@ Données brutes → Preprocessing → Modèle → Prédiction
 
 ### Dataset
 
-**Source :** `01_classe.joblib` (2363 employés historiques)
+**Source :** `01_classe.joblib` (1470 employés historiques)
 
 **Répartition :**
 - **Train set :** 70% (1654 employés)

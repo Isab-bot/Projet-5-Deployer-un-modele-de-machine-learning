@@ -188,34 +188,53 @@ curl -X POST "https://Fox6768-api-demission-prediction.hf.space/predict/new_empl
 
 **Plus d'exemples :** Voir [Documentation Utilisateur](docs/user-guide/examples.md)
 
----
 
-## 🧪 Tests
+
+## 📊 Processus de Traitement et Stockage des Données
+
+### Pipeline de Données
+```
+01_classe.joblib → import_data.py → SQLite (employees) → API → predictions_logs
+     (1470)            ↓                                    ↓
+                  Validation                           Logging
+                  Transformation                       Traçabilité
+```
+
+### Workflow Complet
+
+1. **Source de données** : `01_classe.joblib` (1470 employés historiques)
+2. **Import initial** : Script `import_data.py`
+   - Charge le fichier joblib
+   - Transforme en format JSON (features)
+   - Insert dans table `employees`
+3. **Stockage principal** : Base SQLite `hr_analytics.db`
+   - Table `employees` : Données d'entraînement (lecture seule)
+   - Table `predictions_logs` : Historique des prédictions (écriture continue)
+4. **Logging des prédictions** : Automatique via API
+   - Chaque prédiction → Nouvelle entrée dans `predictions_logs`
+   - Traçabilité complète (input, output, timestamp, modèle version)
+
+### Gestion des Données
+
+**Backup :**
 ```bash
-# Lancer tous les tests
-uv run pytest
-
-# Avec coverage
-uv run pytest --cov
+# Backup automatique quotidien (recommandé)
+cp hr_analytics.db backups/hr_analytics_$(date +%Y%m%d).db
 ```
 
-**Résultat :** 51/51 tests passants ✅
-
----
-
-## 📁 Structure du Projet
+**Nettoyage :**
+```sql
+-- Supprimer les logs de plus d'un an
+DELETE FROM predictions_logs WHERE created_at < datetime('now', '-1 year');
+VACUUM;
 ```
-.
-├── main.py                    # API FastAPI
-├── model_loader.py            # Chargement du modèle
-├── models.py                  # Modèles SQLAlchemy
-├── schemas.py                 # Schémas Pydantic
-├── database.py                # Configuration base de données
-├── tests/                     # Tests automatiques
-├── docs/                      # Documentation MkDocs
-├── pipeline_xgboost_optimised.joblib  # Modèle ML
-└── pyproject.toml             # Configuration projet
-```
+
+**Monitoring :**
+- Taille de la base : `(Get-Item hr_analytics.db).Length / 1MB`
+- Nombre de prédictions : `SELECT COUNT(*) FROM predictions_logs;`
+- Croissance journalière : Voir `docs/operations/monitoring.md`
+
+**Documentation complète :** [Base de Données](https://isab-bot.github.io/Projet-5-Deployer-un-modele-de-machine-learning/technical/database/)
 
 ---
 ## 📈 Besoins Analytiques et Tableaux de Bord
@@ -313,56 +332,29 @@ Pour évaluer le modèle en production :
 
 **Documentation complète :** [Monitoring et Statistiques](https://isab-bot.github.io/Projet-5-Deployer-un-modele-de-machine-learning/operations/monitoring/)
 
----
-
-## 📊 Processus de Traitement et Stockage des Données
-
-### Pipeline de Données
-```
-01_classe.joblib → import_data.py → SQLite (employees) → API → predictions_logs
-     (2363)            ↓                                    ↓
-                  Validation                           Logging
-                  Transformation                       Traçabilité
-```
-
-### Workflow Complet
-
-1. **Source de données** : `01_classe.joblib` (2363 employés historiques)
-2. **Import initial** : Script `import_data.py`
-   - Charge le fichier joblib
-   - Transforme en format JSON (features)
-   - Insert dans table `employees`
-3. **Stockage principal** : Base SQLite `hr_analytics.db`
-   - Table `employees` : Données d'entraînement (lecture seule)
-   - Table `predictions_logs` : Historique des prédictions (écriture continue)
-4. **Logging des prédictions** : Automatique via API
-   - Chaque prédiction → Nouvelle entrée dans `predictions_logs`
-   - Traçabilité complète (input, output, timestamp, modèle version)
-
-### Gestion des Données
-
-**Backup :**
+## 🧪 Tests
 ```bash
-# Backup automatique quotidien (recommandé)
-cp hr_analytics.db backups/hr_analytics_$(date +%Y%m%d).db
+# Lancer tous les tests
+uv run pytest
+
+# Avec coverage
+uv run pytest --cov
 ```
 
-**Nettoyage :**
-```sql
--- Supprimer les logs de plus d'un an
-DELETE FROM predictions_logs WHERE created_at < datetime('now', '-1 year');
-VACUUM;
+**Résultat :** 51/51 tests passants ✅
+
+## 📁 Structure du Projet
 ```
-
-**Monitoring :**
-- Taille de la base : `(Get-Item hr_analytics.db).Length / 1MB`
-- Nombre de prédictions : `SELECT COUNT(*) FROM predictions_logs;`
-- Croissance journalière : Voir `docs/operations/monitoring.md`
-
-**Documentation complète :** [Base de Données](https://isab-bot.github.io/Projet-5-Deployer-un-modele-de-machine-learning/technical/database/)
-
----
-
+.
+├── main.py                    # API FastAPI
+├── model_loader.py            # Chargement du modèle
+├── models.py                  # Modèles SQLAlchemy
+├── schemas.py                 # Schémas Pydantic
+├── database.py                # Configuration base de données
+├── tests/                     # Tests automatiques
+├── docs/                      # Documentation MkDocs
+├── pipeline_xgboost_optimised.joblib  # Modèle ML
+└── pyproject.toml             # Configuration projet
 
 ## 🔗 Liens Utiles
 

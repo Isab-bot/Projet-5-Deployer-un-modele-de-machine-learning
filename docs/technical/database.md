@@ -3,7 +3,7 @@
 ## Architecture SQLite
 
 Le projet utilise SQLite avec 2 tables principales :
-- `employees` : Données d'entraînement (2363 employés historiques)
+- `employees` : Données d'entraînement (1470 employés historiques)
 - `predictions_logs` : Historique des prédictions effectuées par l'API
 
 ---
