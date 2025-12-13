@@ -87,7 +87,6 @@ nav:
   - Référence API:
       - Endpoints: api/endpoints.md
       - Schémas de Données: api/schemas.md
-      - Swagger UI: api/swagger.md
   
   - Standards & Bonnes Pratiques:
       - Standards du Projet: standards/project-standards.md
@@ -95,7 +94,6 @@ nav:
       - Tests: standards/testing.md
   
   - À Propos:
-      - Projet: about/project.md
       - Contact: about/contact.md
       - Licence: about/license.md
 
