@@ -62,7 +62,7 @@
 - **Performance** : Meilleurs résultats (F2=0.68, Recall=95%)
 - **Vitesse** : Prédictions en < 100ms
 - **Robustesse** : Gère bien les données déséquilibrées
-- **Optimisation** : Recherche d'hyperparamètres avec Optuna
+- **Optimisation** : Recherche d'hyperparamètres avec Gridsearch
 
 **Métriques obtenues :**
 | Métrique | Score |
@@ -101,7 +101,7 @@
 
 **Workflow :**
 1. Push vers GitHub
-2. GitHub Actions lance les 61 tests
+2. GitHub Actions lance les 51 tests
 3. Si succès → Badge vert sur README
 4. Si échec → Email de notification
 

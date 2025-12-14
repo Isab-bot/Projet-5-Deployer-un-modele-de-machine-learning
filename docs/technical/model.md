@@ -86,7 +86,7 @@ Documentation technique complète du modèle de prédiction de démissions.
 
 ### Hyperparamètres
 
-**Hyperparamètres optimisés (via Optuna) :**
+**Hyperparamètres optimisés (via Gridsearch) :**
 ```python
 {
     'n_estimators': 150,
@@ -152,7 +152,7 @@ Données brutes → Preprocessing → Modèle → Prédiction
 
 ### Processus d'Optimisation
 
-**Méthode :** Recherche d'hyperparamètres avec Optuna
+**Méthode :** Recherche d'hyperparamètres avec Gridsearch
 
 **Métrique d'optimisation :** F2-Score  
 **Raison :** Privilégie le Recall (détecter un maximum de démissions)
